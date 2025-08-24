@@ -3,32 +3,122 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-
-export default function Page() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  async function sendLink(e: React.FormEvent) {
+  const supabase = createClient();
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const supabase = createClient();
+    setLoading(true);
+    setErr(null);
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-    if (!error) setSent(true); else alert(error.message);
+
+    if (error) {
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setSent(true);
+    setLoading(false);
   }
 
   return (
-    <div style={{maxWidth:420,margin:"40px auto",fontFamily:"system-ui"}}>
-      <h1>Se connecter</h1>
-      {sent ? <p>📧 Lien envoyé. Consultez votre e-mail.</p> : (
-        <form onSubmit={sendLink}>
-          <input type="email" placeholder="vous@exemple.com"
-            value={email} onChange={e=>setEmail(e.target.value)}
-            style={{width:"100%",padding:12,margin:"12px 0"}} required />
-          <button type="submit" style={{padding:12,width:"100%"}}>Recevoir un lien magique</button>
-        </form>
-      )}
-    </div>
+    <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center" }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 440,
+          padding: 24,
+          borderRadius: 12,
+          border: "1px solid #e5e7eb",
+        }}
+      >
+        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>Se connecter</h1>
+        <p style={{ color: "#6b7280", marginBottom: 16 }}>
+          Entrez votre e-mail pour recevoir un lien magique de connexion.
+        </p>
+
+        {sent ? (
+          <div
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #86efac",
+              color: "#14532d",
+              padding: 12,
+              borderRadius: 8,
+            }}
+          >
+            📧 Lien envoyé. Consultez votre e-mail et cliquez sur le lien pour continuer.
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <label
+              htmlFor="email"
+              style={{ display: "block", fontSize: 14, marginBottom: 6 }}
+            >
+              Adresse e-mail
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+              placeholder="vous@exemple.com"
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                marginBottom: 12,
+              }}
+            />
+            {err && (
+              <div
+                style={{
+                  color: "#991b1b",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  padding: 10,
+                  borderRadius: 8,
+                  marginBottom: 12,
+                }}
+              >
+                {err}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={loading || !email}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 8,
+                background: loading ? "#9ca3af" : "#111827",
+                color: "white",
+                fontWeight: 600,
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Envoi en cours…" : "Recevoir un lien magique"}
+            </button>
+          </form>
+        )}
+
+        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 12 }}>
+          Vous recevrez un e-mail envoyé par Supabase.
+        </p>
+      </div>
+    </main>
   );
 }
+
