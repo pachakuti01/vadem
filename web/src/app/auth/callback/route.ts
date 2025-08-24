@@ -15,5 +15,8 @@ export async function GET(req: Request) {
   } else if (token_hash && type) {
     await supabase.auth.verifyOtp({ token_hash, type });
   }
+
+  // retour vers la home (ou une page /dashboard si tu préfères)
   return NextResponse.redirect(new URL("/", req.url));
 }
+
