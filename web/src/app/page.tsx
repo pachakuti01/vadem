@@ -1,20 +1,16 @@
-// web/src/app/page.tsx
 import { redirect } from "next/navigation";
 
-export default function Home({
-  searchParams,
-}: {
-  searchParams?: Record<string, string | string[] | undefined>;
-}) {
-  // Rattrape les liens Supabase qui arrivent sur /
+type SP = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function Home({ searchParams }: { searchParams: SP }) {
+  const sp = await searchParams;
+
   const code =
-    typeof searchParams?.code === "string" ? searchParams.code : undefined;
+    typeof sp.code === "string" ? sp.code : undefined;
   const token_hash =
-    typeof searchParams?.token_hash === "string"
-      ? searchParams.token_hash
-      : undefined;
+    typeof sp.token_hash === "string" ? sp.token_hash : undefined;
   const type =
-    typeof searchParams?.type === "string" ? searchParams.type : undefined;
+    typeof sp.type === "string" ? sp.type : undefined;
 
   if (code) {
     redirect(`/auth/callback?code=${encodeURIComponent(code)}`);
@@ -33,3 +29,4 @@ export default function Home({
     </main>
   );
 }
+
