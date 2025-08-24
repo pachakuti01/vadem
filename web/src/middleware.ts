@@ -1,3 +1,4 @@
+// web/src/middleware.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -10,8 +11,7 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-// Intercepte / et /login
+// matcher large: toutes les routes (hors _next, assets, favicon)
 export const config = {
-  matcher: ["/", "/login"],
+  matcher: ["/((?!_next|.*\\..*|favicon.ico).*)"],
 };
-
