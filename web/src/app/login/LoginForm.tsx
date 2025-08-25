@@ -1,3 +1,16 @@
+// dans LoginForm.tsx (client)
+import { useSearchParams } from "next/navigation";
+const sp = useSearchParams();
+const urlErr = sp.get("error");
+// ...
+{(err || urlErr) && (
+  <div style={{ color:"#991b1b", background:"#fef2f2", border:"1px solid #fecaca",
+                padding:10, borderRadius:8, marginBottom:12 }}>
+    {err || "Échec de l’authentification. Réessaie."}
+  </div>
+)}
+
+
 "use client";
 
 import { useState } from "react";

@@ -1,4 +1,3 @@
-// src/app/auth/callback/route.ts (version complète)
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,11 +11,22 @@ export async function GET(req: Request) {
 
   const supabase = createClient();
 
-  if (code) {
-    await supabase.auth.exchangeCodeForSession(code);
-  } else if (token_hash && type) {
-    await supabase.auth.verifyOtp({ token_hash, type });
-  }
+  try {
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+    } else if (token_hash && type) {
+      const { error } = await supabase.auth.verifyOtp({ token_hash, type });
+      if (error) throw error;
+    } else {
+      // aucun param connu -> retourne vers /login avec message
+      return NextResponse.redirect(new URL("/login?error=missing_params", req.url));
+    }
 
-  return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/", req.url));
+  } catch (err) {
+    // on log minimalement (tu peux brancher Sentry si besoin)
+    console.error("[/auth/callback] ", err);
+    return NextResponse.redirect(new URL("/login?error=auth_failed", req.url));
+  }
 }
