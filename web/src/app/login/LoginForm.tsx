@@ -1,22 +1,13 @@
-// dans LoginForm.tsx (client)
-import { useSearchParams } from "next/navigation";
-const sp = useSearchParams();
-const urlErr = sp.get("error");
-// ...
-{(err || urlErr) && (
-  <div style={{ color:"#991b1b", background:"#fef2f2", border:"1px solid #fecaca",
-                padding:10, borderRadius:8, marginBottom:12 }}>
-    {err || "Échec de l’authentification. Réessaie."}
-  </div>
-)}
-
-
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginForm() {
+  const sp = useSearchParams();
+  const urlErr = sp.get("error");
+
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,26 +52,28 @@ export default function LoginForm() {
               id="email" type="email" required value={email}
               onChange={(e) => setEmail(e.currentTarget.value)}
               placeholder="vous@exemple.com"
-              style={{ width:"100%", padding:"12px 14px", borderRadius:8, border:"1px solid #e5e7eb", marginBottom:12 }}
+              style={{ width:"100%", padding:"12px 14px", borderRadius:8, border:"1px solid #e5e7eb", marginBottom: 12 }}
             />
-            {err && (
-              <div style={{ color:"#991b1b", background:"#fef2f2", border:"1px solid #fecaca", padding:10, borderRadius:8, marginBottom:12 }}>
-                {err}
+
+            {(err || urlErr) && (
+              <div style={{ color:"#991b1b", background:"#fef2f2", border:"1px solid #fecaca",
+                            padding:10, borderRadius:8, marginBottom:12 }}>
+                {err || "Échec de l’authentification. Réessaie."}
               </div>
             )}
+
             <button
               type="submit" disabled={loading || !email}
-              style={{ width:"100%", padding:"12px 14px", borderRadius:8, background: loading?"#9ca3af":"#111827", color:"white", fontWeight:600, cursor: loading?"not-allowed":"pointer" }}
+              style={{ width:"100%", padding:"12px 14px", borderRadius:8,
+                       background: loading ? "#9ca3af" : "#111827",
+                       color:"white", fontWeight:600, cursor: loading ? "not-allowed" : "pointer" }}
             >
               {loading ? "Envoi en cours…" : "Recevoir un lien magique"}
             </button>
           </form>
         )}
-
-        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 12 }}>
-          Vous recevrez un e-mail envoyé par Supabase.
-        </p>
       </div>
     </main>
   );
 }
+
