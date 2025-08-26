@@ -9,7 +9,8 @@ export async function GET(req: Request) {
   const token_hash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;
 
-  const supabase = createClient();
+  // ⬇️ IMPORTANT : createClient() doit être awaited
+  const supabase = await createClient();
 
   try {
     if (code) {
@@ -23,9 +24,9 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL("/login?error=missing_params", req.url));
     }
 
+    // OK -> redirige vers la Home (ou "/dashboard" si tu préfères)
     return NextResponse.redirect(new URL("/", req.url));
   } catch (err) {
-    // on log minimalement (tu peux brancher Sentry si besoin)
     console.error("[/auth/callback] ", err);
     return NextResponse.redirect(new URL("/login?error=auth_failed", req.url));
   }

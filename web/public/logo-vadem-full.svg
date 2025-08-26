@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="80" viewBox="0 0 280 80" role="img" aria-labelledby="title">
+  <title id="title">Logo Vadem</title>
+  <!-- Icône -->
+  <g transform="translate(0,8)">
+    <!-- carré arrondi -->
+    <rect x="0" y="0" width="64" height="64" rx="12" fill="none" stroke="currentColor" stroke-width="4"></rect>
+    <!-- étoile -->
+    <path d="M32 14
+             C38 26,42 30,52 32
+             C42 34,38 38,32 50
+             C26 38,22 34,12 32
+             C22 30,26 26,32 14Z" fill="currentColor"></path>
+    <!-- plus -->
+    <g stroke="currentColor" stroke-width="4" stroke-linecap="round">
+      <line x1="48" y1="16" x2="48" y2="28"></line>
+      <line x1="42" y1="22" x2="54" y2="22"></line>
+    </g>
+  </g>
+
+  <!-- Texte -->
+  <text x="80" y="52" font-family="Inter, sans-serif" font-size="40" font-weight="600" fill="currentColor">
+    Vadem
+  </text>
+</svg>

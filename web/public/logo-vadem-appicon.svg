@@ -1,0 +1,18 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Vadem – app icon</title>
+  <!-- fond arrondi noir -->
+  <rect x="12" y="12" width="232" height="232" rx="56" fill="#000"></rect>
+  <!-- carte blanche intérieure -->
+  <rect x="44" y="44" width="168" height="168" rx="28" fill="#fff"></rect>
+  <!-- étoile "sparkle" (noire) -->
+  <path d="M128 88
+           C140 112,148 120,172 128
+           C148 136,140 144,128 168
+           C116 144,108 136,84 128
+           C108 120,116 112,128 88Z" fill="#000"></path>
+  <!-- petit plus en haut‑droite -->
+  <g stroke="#000" stroke-width="10" stroke-linecap="round">
+    <line x1="176" y1="92" x2="176" y2="112"></line>
+    <line x1="166" y1="102" x2="186" y2="102"></line>
+  </g>
+</svg>

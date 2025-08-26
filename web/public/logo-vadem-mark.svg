@@ -1,0 +1,16 @@
+<svg width="160" height="160" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Vadem – mark</title>
+  <!-- carré arrondi contour -->
+  <rect x="28" y="28" width="200" height="200" rx="32" fill="none" stroke="currentColor" stroke-width="16"></rect>
+  <!-- étoile pleine -->
+  <path d="M128 84
+           C140 110,148 118,172 128
+           C148 138,140 146,128 172
+           C116 146,108 138,84 128
+           C108 118,116 110,128 84Z" fill="currentColor"></path>
+  <!-- petit plus -->
+  <g stroke="currentColor" stroke-width="12" stroke-linecap="round">
+    <line x1="182" y1="82" x2="182" y2="106"></line>
+    <line x1="170" y1="94" x2="194" y2="94"></line>
+  </g>
+</svg>
