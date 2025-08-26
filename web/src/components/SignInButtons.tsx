@@ -25,19 +25,19 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
       });
       if (error) throw error;
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Connexion indisponible pour le moment";
-      alert(message);
+      alert(e instanceof Error ? e.message : "Connexion indisponible pour le moment");
       setLoading(null);
     }
   }
 
   const isFull     = variant === "full";
-  const iconSize   = isFull ? 24 : 20;  // taille logo
-  const iconCol    = isFull ? 56 : 48;  // colonne icône FIXE → aligne “Continuer”
+  const iconSize   = isFull ? 24 : 20;      // taille logo
+  const iconCol    = isFull ? 56 : 48;      // colonne icône FIXE → aligne “Continuer”
   const gap        = isFull ? 12 : 10;
   const padX       = isFull ? 24 : 16;
-  const buttonMaxW = isFull ? 560 : 420; // largeur max du bouton
-  const contentW   = isFull ? 360 : 300; // largeur FIXE du groupe (icône+texte) → centre + aligne
+
+  const buttonMaxW = isFull ? 560 : 420;    // largeur max du bouton (centré)
+  const contentW   = isFull ? 400 : 320;    // ⚠ largeur FIXE du groupe icône+texte
 
   const buttonClass =
     (isFull ? "h-14 text-lg" : "h-10 text-sm") +
@@ -60,23 +60,25 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
           disabled={loading !== null}
           aria-busy={loading === p.key}
           className={buttonClass}
-          // 1) Le bouton est centré et a une largeur max homogène
           style={{
+            // bouton centré et moins large
             maxWidth: buttonMaxW,
+            marginInline: "auto",
+            paddingLeft: padX,
+            paddingRight: padX,
+            // centre le groupe
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            paddingLeft: padX,
-            paddingRight: padX,
           }}
         >
-          {/* 2) Wrapper centré de largeur FIXE + grid 2 colonnes */}
+          {/* Groupe centré + largeur FIXE identique partout */}
           <div
             style={{
-              width: "100%",
-              maxWidth: contentW,             // ← largeur commune → centrage identique
+              width: contentW,                 // ← largeur FIXE → centrage + alignement garanti
+              maxWidth: "100%",
               display: "grid",
-              gridTemplateColumns: `${iconCol}px auto`, // ← colonne icône FIXE
+              gridTemplateColumns: `${iconCol}px 1fr`, // icône FIXE + texte FLEX
               columnGap: gap,
               alignItems: "center",
               justifyItems: "start",
@@ -85,8 +87,6 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
             <span style={{ display: "grid", placeItems: "center" }}>
               <Image src={p.icon} alt="" width={iconSize} height={iconSize} />
             </span>
-
-            {/* 3) Texte à gauche → “Continuer” démarre au même x partout */}
             <span className="font-medium leading-none" style={{ textAlign: "left" }}>
               {loading === p.key ? "Connexion..." : p.label}
             </span>
@@ -96,4 +96,5 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
     </div>
   );
 }
+
 
