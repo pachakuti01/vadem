@@ -31,11 +31,13 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
     }
   }
 
-  const isFull   = variant === "full";
-  const iconSize = isFull ? 24 : 20;  // taille visuelle des logos
-  const iconCol  = isFull ? 56 : 48;  // largeur FIXE de la colonne icône → aligne “Continuer”
-  const padX     = isFull ? 24 : 16;
-  const gap      = isFull ? 12 : 10;
+  const isFull     = variant === "full";
+  const iconSize   = isFull ? 24 : 20;  // taille logo
+  const iconCol    = isFull ? 56 : 48;  // colonne icône FIXE → aligne “Continuer”
+  const gap        = isFull ? 12 : 10;
+  const padX       = isFull ? 24 : 16;
+  const buttonMaxW = isFull ? 560 : 420; // largeur max du bouton
+  const contentW   = isFull ? 360 : 300; // largeur FIXE du groupe (icône+texte) → centre + aligne
 
   const buttonClass =
     (isFull ? "h-14 text-lg" : "h-10 text-sm") +
@@ -54,31 +56,44 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
         <button
           key={p.key}
           type="button"
-          className={buttonClass}
           onClick={() => signIn(p.key)}
           disabled={loading !== null}
           aria-busy={loading === p.key}
+          className={buttonClass}
+          // 1) Le bouton est centré et a une largeur max homogène
           style={{
-            display: "grid",
-            gridTemplateColumns: `${iconCol}px 1fr`, // icône FIXE + texte FLEX → même x pour “Continuer”
+            maxWidth: buttonMaxW,
+            display: "flex",
+            justifyContent: "center",
             alignItems: "center",
-            columnGap: gap,
             paddingLeft: padX,
             paddingRight: padX,
-            // pas de justifyContent: center → on garde le texte aligné à gauche
           }}
         >
-          {/* Colonne icône (centrée dans sa cellule) */}
-          <span style={{ display: "grid", placeItems: "center" }}>
-            <Image src={p.icon} alt="" width={iconSize} height={iconSize} />
-          </span>
+          {/* 2) Wrapper centré de largeur FIXE + grid 2 colonnes */}
+          <div
+            style={{
+              width: "100%",
+              maxWidth: contentW,             // ← largeur commune → centrage identique
+              display: "grid",
+              gridTemplateColumns: `${iconCol}px auto`, // ← colonne icône FIXE
+              columnGap: gap,
+              alignItems: "center",
+              justifyItems: "start",
+            }}
+          >
+            <span style={{ display: "grid", placeItems: "center" }}>
+              <Image src={p.icon} alt="" width={iconSize} height={iconSize} />
+            </span>
 
-          {/* Colonne texte (alignée à gauche) → “Continuer” sur la même verticale */}
-          <span className="font-medium leading-none" style={{ textAlign: "left" }}>
-            {loading === p.key ? "Connexion..." : p.label}
-          </span>
+            {/* 3) Texte à gauche → “Continuer” démarre au même x partout */}
+            <span className="font-medium leading-none" style={{ textAlign: "left" }}>
+              {loading === p.key ? "Connexion..." : p.label}
+            </span>
+          </div>
         </button>
       ))}
     </div>
   );
 }
+
