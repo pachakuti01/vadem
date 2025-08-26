@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 type Provider = "google" | "apple" | "facebook" | "azure";
@@ -25,29 +24,22 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
       });
       if (error) throw error;
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Connexion indisponible pour le moment");
+      const message = e instanceof Error ? e.message : "Connexion indisponible pour le moment";
+      alert(message);
       setLoading(null);
     }
   }
 
-  const isFull     = variant === "full";
-  const iconSize   = isFull ? 24 : 20;      // taille logo
-  const iconCol    = isFull ? 56 : 48;      // colonne icône FIXE → aligne “Continuer”
-  const gap        = isFull ? 12 : 10;
-  const padX       = isFull ? 24 : 16;
-
-  const buttonMaxW = isFull ? 560 : 420;    // largeur max du bouton (centré)
-  const contentW   = isFull ? 400 : 320;    // ⚠ largeur FIXE du groupe icône+texte
-
-  const buttonClass =
-    (isFull ? "h-14 text-lg" : "h-10 text-sm") +
-    " w-full rounded-xl border hover:bg-gray-50 disabled:opacity-60";
+  const isFull = variant === "full";
+  const buttonClass = isFull 
+    ? "relative h-14 w-full rounded-xl border hover:bg-gray-50 disabled:opacity-60 text-lg"
+    : "relative h-10 w-full rounded-xl border hover:bg-gray-50 disabled:opacity-60 text-sm";
 
   const providers: Array<{ key: Provider; label: string; icon: string }> = [
-    { key: "google",   label: "Continuer avec Google",    icon: "/brands/logo_google.svg" },
-    { key: "apple",    label: "Continuer avec Apple",     icon: "/brands/logo_apple.svg" },
-    { key: "facebook", label: "Continuer avec Facebook",  icon: "/brands/logo_facebook.svg" },
-    { key: "azure",    label: "Continuer avec Microsoft", icon: "/brands/logo_microsoft.svg" },
+    { key: "google",   label: "Continuer avec Google",   icon: "/brands/logo_google.svg" },
+    { key: "apple",    label: "Continuer avec Apple",    icon: "/brands/logo_apple.svg" },
+    { key: "facebook", label: "Continuer avec Facebook", icon: "/brands/logo_facebook.svg" },
+    { key: "azure",    label: "Continuer avec Microsoft",icon: "/brands/logo_microsoft.svg" },
   ];
 
   return (
@@ -56,38 +48,38 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
         <button
           key={p.key}
           type="button"
+          className={buttonClass}
           onClick={() => signIn(p.key)}
           disabled={loading !== null}
           aria-busy={loading === p.key}
-          className={buttonClass}
           style={{
-            // bouton centré et moins large
-            maxWidth: buttonMaxW,
-            marginInline: "auto",
-            paddingLeft: padX,
-            paddingRight: padX,
-            // centre le groupe
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center', // Retour au centrage
+            paddingLeft: isFull ? '24px' : '16px',
+            paddingRight: isFull ? '24px' : '16px'
           }}
         >
-          {/* Groupe centré + largeur FIXE identique partout */}
-          <div
-            style={{
-              width: contentW,                 // ← largeur FIXE → centrage + alignement garanti
-              maxWidth: "100%",
-              display: "grid",
-              gridTemplateColumns: `${iconCol}px 1fr`, // icône FIXE + texte FLEX
-              columnGap: gap,
-              alignItems: "center",
-              justifyItems: "start",
-            }}
-          >
-            <span style={{ display: "grid", placeItems: "center" }}>
-              <Image src={p.icon} alt="" width={iconSize} height={iconSize} />
-            </span>
-            <span className="font-medium leading-none" style={{ textAlign: "left" }}>
+          {/* Contenu centré avec flex */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img
+              src={p.icon}
+              alt=""
+              width={24}
+              height={24}
+              style={{
+                height: '24px',
+                width: '24px',
+                flexShrink: 0
+              }}
+            />
+            <span 
+              className="font-medium leading-none"
+              style={{ 
+                minWidth: '200px', // Largeur fixe pour aligner les mots "Continuer"
+                textAlign: 'left'
+              }}
+            >
               {loading === p.key ? "Connexion..." : p.label}
             </span>
           </div>
@@ -96,5 +88,4 @@ export default function SignInButtons({ variant = "full" }: SignInButtonsProps) 
     </div>
   );
 }
-
 
