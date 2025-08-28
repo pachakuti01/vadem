@@ -69,8 +69,10 @@ export default function DashboardPage() {
     setFolders((fs) => [...fs, { id, name, parentId }]);
     if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false })); // déplier le parent
   };
-  const promptAddRoot  = () => { const n = prompt('Nom du dossier :')?.trim(); if (n) addFolder(n, null); };
-  const promptAddChild = (pid: string) => { const n = prompt('Nom du sous-dossier :')?.trim(); if (n) addFolder(n, pid); };
+  const promptAddChild = (pid: string) => {
+    const n = prompt('Nom du sous-dossier :')?.trim();
+    if (n) addFolder(n, pid);
+  };
   const renameFolder   = (id: string) => {
     const cur = folders.find((x) => x.id === id); if (!cur) return;
     const n = prompt('Nouveau nom :', cur.name)?.trim(); if (!n) return;
@@ -84,6 +86,10 @@ export default function DashboardPage() {
     setFolders((fs) => fs.filter((x) => !toDelete.has(x.id)));
   };
   const toggleCollapse = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
+
+  // Création de dossier inline
+  const [adding, setAdding] = useState(false);
+  const addRef = useRef<HTMLInputElement|null>(null);
 
   // Quota
   const requireQuota = () => {
@@ -165,22 +171,42 @@ export default function DashboardPage() {
         {/* ── Sidebar ────────────────────────────────────────── */}
         <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6">
           {/* Vues */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-3">
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="text-xs font-semibold text-slate-500 uppercase px-1 mb-2">Vues</div>
             <nav className="grid gap-1">
-              <NavItem label="Toutes" onClick={() => console.log('vue: all')} />
-              <NavItem label="Récents" onClick={() => console.log('vue: recent')} />
-              <NavItem label="Épinglées" onClick={() => console.log('vue: pinned')} />
-              <NavItem label="Non classées" onClick={() => console.log('vue: uncategorized')} />
+              <NavItem label="Toutes" active count={used} onClick={() => console.log('vue: all')} />
+              <NavItem label="Récents" count={0} onClick={() => console.log('vue: recent')} />
+              <NavItem label="Épinglées" count={0} onClick={() => console.log('vue: pinned')} />
+              <NavItem label="Non classées" count={Math.max(0, used)} onClick={() => console.log('vue: uncategorized')} />
             </nav>
           </section>
 
           {/* Dossiers */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-3">
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-              <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
+              <button onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
             </div>
+
+            {adding ? (
+              <div className="flex gap-2 px-2 pb-2">
+                <input
+                  ref={addRef}
+                  autoFocus
+                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Nom du dossier…"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const name = (e.currentTarget.value || '').trim();
+                      if (name) addFolder(name, null);
+                      setAdding(false);
+                    }
+                    if (e.key === 'Escape') setAdding(false);
+                  }}
+                  onBlur={() => setAdding(false)}
+                />
+              </div>
+            ) : null}
 
             <FolderTree
               byParent={byParent}
@@ -198,7 +224,7 @@ export default function DashboardPage() {
           {/* Créer une note */}
           <section>
             <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               <NoteActionCard title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
               <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
 
@@ -215,25 +241,26 @@ export default function DashboardPage() {
               <NoteActionCard title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
             </div>
 
-            {/* Dropzone light (visuel) */}
-            <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-center text-slate-500">
-              Glisse un fichier (PDF, vidéo, audio) ici pour créer une note.
-            </div>
+            <DropZone onClick={() => openPicker(pdfRef)} />
           </section>
 
           {/* Mes notes */}
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-semibold">Mes notes</h3>
-              <select
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                onChange={(e) => console.log('sort:', e.target.value)}
-                defaultValue="recent"
-              >
-                <option value="recent">Trier : Récents</option>
-                <option value="az">Trier : A → Z</option>
-                <option value="za">Trier : Z → A</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue grille">▦</button>
+                <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue liste">≣</button>
+                <select
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onChange={(e) => console.log('sort:', e.target.value)}
+                  defaultValue="recent"
+                >
+                  <option value="recent">Trier : Récents</option>
+                  <option value="az">Trier : A → Z</option>
+                  <option value="za">Trier : Z → A</option>
+                </select>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
@@ -252,13 +279,26 @@ export default function DashboardPage() {
 /* UI atoms                                                                   */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function NavItem({ label, onClick }: { label: string; onClick?: () => void }) {
+function NavItem({ label, active=false, count, onClick }:{
+  label: string; active?: boolean; count?: number; onClick?: () => void;
+}) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-lg px-3 py-2 hover:bg-slate-100 transition"
+      className={[
+        "w-full flex items-center justify-between rounded-lg px-3 py-2 transition",
+        active ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-100 text-slate-700"
+      ].join(" ")}
     >
-      {label}
+      <span>{label}</span>
+      {typeof count === "number" && (
+        <span className={[
+          "ml-3 inline-flex items-center rounded-full px-2 text-xs",
+          active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
+        ].join(" ")}>
+          {count}
+        </span>
+      )}
     </button>
   );
 }
@@ -268,15 +308,28 @@ function NoteActionCard(props: { title: string; subtitle?: string; icon?: string
   return (
     <button
       onClick={onClick}
-      className="group rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 to-white p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="group rounded-2xl border border-indigo-100 bg-white p-4 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
     >
       <div className="flex items-start gap-3">
-        <div className="text-xl">{icon}</div>
+        <div className="text-xl text-indigo-600/90">{icon}</div>
         <div>
           <div className="font-medium">{title}</div>
           {subtitle ? <div className="text-sm text-slate-500">{subtitle}</div> : null}
         </div>
       </div>
+    </button>
+  );
+}
+
+function DropZone({ onClick }:{ onClick?:()=>void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-3 w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-center text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      aria-label="Importer un fichier"
+      role="button"
+    >
+      Glisse un fichier (PDF, vidéo, audio) ou <span className="text-indigo-600 underline">clique pour choisir</span>.
     </button>
   );
 }
@@ -374,13 +427,13 @@ function FolderNode({
           ) : (
             <span className="inline-flex h-5 w-5 items-center justify-center opacity-40">•</span>
           )}
-          <button className="truncate text-left">📁 {node.name}</button>
+          <button className="truncate text-left" aria-label={`Ouvrir le dossier ${node.name}`}>📁 {node.name}</button>
         </div>
 
         <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
-          <button onClick={() => onAddChild(node.id)} title="Sous-dossier">➕</button>
-          <button onClick={() => onRename(node.id)}   title="Renommer">✏️</button>
-          <button onClick={() => onDelete(node.id)}   title="Supprimer">🗑️</button>
+          <button onClick={() => onAddChild(node.id)} title="Sous-dossier" aria-label="Créer un sous-dossier">➕</button>
+          <button onClick={() => onRename(node.id)}   title="Renommer" aria-label="Renommer le dossier">✏️</button>
+          <button onClick={() => onDelete(node.id)}   title="Supprimer" aria-label="Supprimer le dossier">🗑️</button>
         </div>
       </div>
 
