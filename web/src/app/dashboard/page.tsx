@@ -160,57 +160,82 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Créer une note ───────────────────────────────────── */}
-      <section className="mx-auto max-w-7xl px-4 pt-4">
-        <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
-          <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
+      {/* ── Grille principale : Sidebar (gauche) / Main (droite) ─────────── */}
+      <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* ── Sidebar ────────────────────────────────────────── */}
+        <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6">
+          {/* Vues */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-3">
+            <div className="text-xs font-semibold text-slate-500 uppercase px-1 mb-2">Vues</div>
+            <nav className="grid gap-1">
+              <NavItem label="Toutes" onClick={() => console.log('vue: all')} />
+              <NavItem label="Récents" onClick={() => console.log('vue: recent')} />
+              <NavItem label="Épinglées" onClick={() => console.log('vue: pinned')} />
+              <NavItem label="Non classées" onClick={() => console.log('vue: uncategorized')} />
+            </nav>
+          </section>
 
-          <CardButton title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬" onClick={() => openPicker(videoRef)} />
-          <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
+          {/* Dossiers */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
+              <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
+            </div>
 
-          <CardButton title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄" onClick={() => openPicker(pdfRef)} />
-          <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
-
-          <CardButton title="Lien Web" subtitle="Résumé page web" icon="🔗" onClick={() => { if (!requireQuota()) return; const url = prompt('URL à importer :'); if (url) console.log('URL:', url); }} />
-
-          <CardButton title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️" onClick={() => { if (!requireQuota()) return; const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
-
-          <CardButton title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
-        </div>
-      </section>
-
-      {/* ── Grille principale : 12 colonnes (robuste) ─────────────────────── */}
-      <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Dossiers (col gauche) */}
-        <aside className="md:col-span-3 md:sticky md:top-[64px] md:self-start">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-            <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
-          </div>
-
-          <FolderTree
-            byParent={byParent}
-            collapsed={collapsed}
-            onToggle={toggleCollapse}
-            onAddChild={promptAddChild}
-            onRename={renameFolder}
-            onDelete={deleteFolder}
-          />
+            <FolderTree
+              byParent={byParent}
+              collapsed={collapsed}
+              onToggle={toggleCollapse}
+              onAddChild={promptAddChild}
+              onRename={renameFolder}
+              onDelete={deleteFolder}
+            />
+          </section>
         </aside>
 
-        {/* Mes notes (col droite) */}
-        <main className="md:col-span-9">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <FilterChip label="Toutes" active />
-            <FilterChip label="Récents" />
-            <FilterChip label="Épinglées" />
-            <FilterChip label="Non classées" />
-          </div>
-
+        {/* ── Main ───────────────────────────────────────────── */}
+        <main className="order-1 lg:order-2 lg:col-span-9 space-y-8">
+          {/* Créer une note */}
           <section>
-            <h3 className="text-base font-semibold mb-3">Mes notes</h3>
+            <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              <NoteActionCard title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
+              <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
+
+              <NoteActionCard title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬" onClick={() => openPicker(videoRef)} />
+              <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
+
+              <NoteActionCard title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄" onClick={() => openPicker(pdfRef)} />
+              <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
+
+              <NoteActionCard title="Lien Web" subtitle="Résumé page web" icon="🔗" onClick={() => { if (!requireQuota()) return; const url = prompt('URL à importer :'); if (url) console.log('URL:', url); }} />
+
+              <NoteActionCard title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️" onClick={() => { if (!requireQuota()) return; const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
+
+              <NoteActionCard title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
+            </div>
+
+            {/* Dropzone light (visuel) */}
+            <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-center text-slate-500">
+              Glisse un fichier (PDF, vidéo, audio) ici pour créer une note.
+            </div>
+          </section>
+
+          {/* Mes notes */}
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold">Mes notes</h3>
+              <select
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onChange={(e) => console.log('sort:', e.target.value)}
+                defaultValue="recent"
+              >
+                <option value="recent">Trier : Récents</option>
+                <option value="az">Trier : A → Z</option>
+                <option value="za">Trier : Z → A</option>
+              </select>
+            </div>
+
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
               <div className="mx-auto mb-2 text-3xl">📂</div>
               <p>Aucune note pour le moment.</p>
@@ -227,12 +252,23 @@ export default function DashboardPage() {
 /* UI atoms                                                                   */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function CardButton(props: { title: string; subtitle?: string; icon?: string; onClick?: () => void }) {
+function NavItem({ label, onClick }: { label: string; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-lg px-3 py-2 hover:bg-slate-100 transition"
+    >
+      {label}
+    </button>
+  );
+}
+
+function NoteActionCard(props: { title: string; subtitle?: string; icon?: string; onClick?: () => void }) {
   const { title, subtitle, icon = '📎', onClick } = props;
   return (
     <button
       onClick={onClick}
-      className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="group rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 to-white p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
     >
       <div className="flex items-start gap-3">
         <div className="text-xl">{icon}</div>
@@ -241,22 +277,6 @@ function CardButton(props: { title: string; subtitle?: string; icon?: string; on
           {subtitle ? <div className="text-sm text-slate-500">{subtitle}</div> : null}
         </div>
       </div>
-    </button>
-  );
-}
-
-function FilterChip({ label, active = false }: { label: string; active?: boolean }) {
-  return (
-    <button
-      className={[
-        "rounded-full border px-3 py-1 text-sm",
-        active
-          ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-      ].join(" ")}
-      onClick={() => console.log('filter:', label)}
-    >
-      {label}
     </button>
   );
 }
