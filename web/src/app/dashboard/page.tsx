@@ -4,34 +4,40 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Types & constantes                                                         */
+/* ────────────────────────────────────────────────────────────────────────── */
 type Folder = {
   id: string;
   name: string;
-  parentId: string | null; // null = dossier racine
+  parentId: string | null; // null = racine
 };
 
-const FREE_QUOTA = 3; // quota plan gratuit (MVP)
-const LS_KEY_FOLDERS = 'vadem.folders';
-const LS_KEY_USED = 'vadem.usedNotes';
-const LS_KEY_COLLAPSE = 'vadem.folders.collapse';
+const FREE_QUOTA = 3;
+const LS_KEY_FOLDERS   = 'vadem.folders';
+const LS_KEY_USED      = 'vadem.usedNotes';
+const LS_KEY_COLLAPSE  = 'vadem.folders.collapse';
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Page                                                                        */
+/* ────────────────────────────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const router = useRouter();
 
-  // ---- Refs sûres
+  // Refs upload/recherche
   const searchRef = useRef<HTMLInputElement | null>(null);
   const pdfRef   = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLInputElement | null>(null);
 
-  // ---- Compteur (MVP -> localStorage)
+  // Compteur (MVP localStorage)
   const [used, setUsed] = useState<number>(() => {
     const v = Number(localStorage.getItem(LS_KEY_USED));
     return Number.isFinite(v) && v >= 0 ? v : 0;
   });
   useEffect(() => localStorage.setItem(LS_KEY_USED, String(used)), [used]);
 
-  // ---- Dossiers (flat) + état de repli
+  // Dossiers (flat) + état repli
   const [folders, setFolders] = useState<Folder[]>(() => {
     try { return JSON.parse(localStorage.getItem(LS_KEY_FOLDERS) || '[]') as Folder[]; }
     catch { return []; }
@@ -44,7 +50,7 @@ export default function DashboardPage() {
   });
   useEffect(() => localStorage.setItem(LS_KEY_COLLAPSE, JSON.stringify(collapsed)), [collapsed]);
 
-  // ---- Helpers dossiers
+  // Index par parent (tri alpha par fratrie)
   const byParent = useMemo(() => {
     const map = new Map<string | null, Folder[]>();
     for (const f of folders) {
@@ -53,50 +59,33 @@ export default function DashboardPage() {
       arr.push(f);
       map.set(k, arr);
     }
-    // tri alpha par fratrie
     for (const [, arr] of map) arr.sort((a, b) => a.name.localeCompare(b.name));
     return map;
   }, [folders]);
 
-  const addFolder = (name: string, parentId: string | null = null) => {
+  // CRUD dossiers
+  const addFolder = (name: string, parentId: string | null) => {
     const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
     setFolders((fs) => [...fs, { id, name, parentId }]);
-    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false })); // déplier le parent à la création
+    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false }));
   };
-
-  const promptAddRoot = () => {
-    const name = prompt('Nom du dossier :')?.trim();
-    if (name) addFolder(name, null);
+  const promptAddRoot  = () => { const n = prompt('Nom du dossier :')?.trim(); if (n) addFolder(n, null); };
+  const promptAddChild = (pid: string) => { const n = prompt('Nom du sous-dossier :')?.trim(); if (n) addFolder(n, pid); };
+  const renameFolder   = (id: string) => {
+    const cur = folders.find((x) => x.id === id); if (!cur) return;
+    const n = prompt('Nouveau nom :', cur.name)?.trim(); if (!n) return;
+    setFolders((fs) => fs.map((x) => (x.id === id ? { ...x, name: n } : x)));
   };
-  const promptAddChild = (parentId: string) => {
-    const name = prompt('Nom du sous-dossier :')?.trim();
-    if (name) addFolder(name, parentId);
-  };
-
-  const renameFolder = (id: string) => {
-    const cur = folders.find((x) => x.id === id);
-    if (!cur) return;
-    const name = prompt('Nouveau nom :', cur.name)?.trim();
-    if (!name) return;
-    setFolders((fs) => fs.map((x) => (x.id === id ? { ...x, name } : x)));
-  };
-
-  const deleteFolder = (id: string) => {
-    // supprime aussi les descendants
+  const deleteFolder   = (id: string) => {
     if (!confirm('Supprimer ce dossier et son contenu ?')) return;
     const toDelete = new Set<string>();
-    const visit = (target: string) => {
-      toDelete.add(target);
-      for (const f of folders) if (f.parentId === target) visit(f.id);
-    };
+    const visit = (d: string) => { toDelete.add(d); for (const f of folders) if (f.parentId === d) visit(f.id); };
     visit(id);
     setFolders((fs) => fs.filter((x) => !toDelete.has(x.id)));
   };
+  const toggleCollapse = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
 
-  const toggleCollapse = (id: string) =>
-    setCollapsed((c) => ({ ...c, [id]: !c[id] }));
-
-  // ---- Garde-fou quota
+  // Quota
   const requireQuota = () => {
     if (used >= FREE_QUOTA) {
       const go = confirm('Tu as atteint la limite du plan gratuit. Mettre à niveau ?');
@@ -106,37 +95,18 @@ export default function DashboardPage() {
     return true;
   };
 
-  // ---- Upload helpers
+  // Upload
   const openPicker = (ref: React.MutableRefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>) => {
     if (!requireQuota()) return;
     ref.current?.click();
   };
-
-  const onPdfChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const file = e.currentTarget.files?.[0];
-    if (!file) return;
-    if (!requireQuota()) return;
-    console.log('PDF:', file.name);
-    setUsed((u) => Math.min(FREE_QUOTA, u + 1));
-  };
-  const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const file = e.currentTarget.files?.[0];
-    if (!file) return;
-    if (!requireQuota()) return;
-    console.log('Audio:', file.name);
-    setUsed((u) => Math.min(FREE_QUOTA, u + 1));
-  };
-  const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const file = e.currentTarget.files?.[0];
-    if (!file) return;
-    if (!requireQuota()) return;
-    console.log('Video:', file.name);
-    setUsed((u) => Math.min(FREE_QUOTA, u + 1));
-  };
+  const onPdfChange:   React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
+  const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
+  const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
 
   return (
     <div className="min-h-screen">
-      {/* --- Topbar --- */}
+      {/* ── Header ───────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 font-semibold">
@@ -158,7 +128,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Badge + Upgrade dans le header */}
           <div className="ml-auto hidden sm:flex items-center gap-3">
             <PlanBadge used={used} quota={FREE_QUOTA} />
             <button
@@ -179,65 +148,46 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Bandeau quota atteint */}
+      {/* Bandeau quota (option) */}
       {used >= FREE_QUOTA && (
         <div className="mx-auto max-w-7xl px-4 pt-4">
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 flex items-center justify-between">
             <span>Tu as atteint la limite du plan gratuit.</span>
-            <button
-              onClick={() => router.push('/pricing')}
-              className="rounded-lg bg-amber-600 px-3 py-1.5 text-white hover:bg-amber-500"
-            >
+            <button onClick={() => router.push('/pricing')} className="rounded-lg bg-amber-600 px-3 py-1.5 text-white hover:bg-amber-500">
               Mettre à niveau
             </button>
           </div>
         </div>
       )}
 
-      {/* ===== Créer une note ===== */}
+      {/* ── Créer une note (plein-largeur, pas de bouton “Nouvelle note”) ── */}
       <section className="mx-auto max-w-7xl px-4 pt-4">
         <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤"
-                      onClick={() => openPicker(audioRef)} />
+          <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
           <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
 
-          <CardButton title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬"
-                      onClick={() => openPicker(videoRef)} />
+          <CardButton title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬" onClick={() => openPicker(videoRef)} />
           <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
 
-          <CardButton title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄"
-                      onClick={() => openPicker(pdfRef)} />
+          <CardButton title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄" onClick={() => openPicker(pdfRef)} />
           <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
 
-          <CardButton title="Lien Web" subtitle="Résumé page web" icon="🔗"
-                      onClick={() => {
-                        if (!requireQuota()) return;
-                        const url = prompt('URL à importer :');
-                        if (url) console.log('URL:', url);
-                      }} />
+          <CardButton title="Lien Web" subtitle="Résumé page web" icon="🔗" onClick={() => { if (!requireQuota()) return; const url = prompt('URL à importer :'); if (url) console.log('URL:', url); }} />
 
-          <CardButton title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️"
-                      onClick={() => {
-                        if (!requireQuota()) return;
-                        const url = prompt('URL YouTube :');
-                        if (url) console.log('YouTube:', url);
-                      }} />
+          <CardButton title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️" onClick={() => { if (!requireQuota()) return; const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
 
-          <CardButton title="Note vierge" subtitle="Commencer au clavier" icon="✏️"
-                      onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
+          <CardButton title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
         </div>
       </section>
 
-      {/* ===== Grille principale : Dossiers à gauche / Mes notes à droite ===== */}
+      {/* ── Grille : Dossiers (gauche) / Mes notes (droite) ──────────────── */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[300px,1fr] gap-6">
-        {/* Panneau Dossiers (plus de +Dossier perdu) */}
+        {/* Dossiers */}
         <aside className="md:sticky md:top-[64px] md:self-start">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-            <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">
-              + Dossier
-            </button>
+            <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
           </div>
 
           <FolderTree
@@ -273,7 +223,9 @@ export default function DashboardPage() {
   );
 }
 
-/* ----------------- UI atoms / Folder tree ----------------- */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* UI atoms                                                                   */
+/* ────────────────────────────────────────────────────────────────────────── */
 
 function CardButton(props: { title: string; subtitle?: string; icon?: string; onClick?: () => void }) {
   const { title, subtitle, icon = '📎', onClick } = props;
@@ -318,7 +270,10 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
   );
 }
 
-/** Arbre récursif (à partir de la map par parent) */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Arbre de dossiers                                                          */
+/* ────────────────────────────────────────────────────────────────────────── */
+
 function FolderTree({
   byParent,
   collapsed,
@@ -404,8 +359,8 @@ function FolderNode({
 
         <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
           <button onClick={() => onAddChild(node.id)} title="Sous-dossier">➕</button>
-          <button onClick={() => onRename(node.id)} title="Renommer">✏️</button>
-          <button onClick={() => onDelete(node.id)} title="Supprimer">🗑️</button>
+          <button onClick={() => onRename(node.id)}   title="Renommer">✏️</button>
+          <button onClick={() => onDelete(node.id)}   title="Supprimer">🗑️</button>
         </div>
       </div>
 
@@ -429,6 +384,7 @@ function FolderNode({
     </li>
   );
 }
+
 
 
 
