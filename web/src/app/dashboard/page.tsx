@@ -7,11 +7,8 @@ import { useRouter } from 'next/navigation';
 /* ────────────────────────────────────────────────────────────────────────── */
 /* Types & constantes                                                         */
 /* ────────────────────────────────────────────────────────────────────────── */
-type Folder = {
-  id: string;
-  name: string;
-  parentId: string | null; // null = racine
-};
+type Folder = { id: string; name: string; parentId: string | null };
+type Note = { id: string; title: string; excerpt?: string; kind?: 'pdf' | 'audio' | 'video' | 'text'; updatedAt: string };
 
 const FREE_QUOTA = 3;
 const LS_KEY_FOLDERS  = 'vadem.folders';
@@ -54,10 +51,9 @@ export default function DashboardPage() {
   const byParent = useMemo(() => {
     const map = new Map<string | null, Folder[]>();
     for (const f of folders) {
-      const k = f.parentId;
-      const arr = map.get(k) ?? [];
+      const arr = map.get(f.parentId) ?? [];
       arr.push(f);
-      map.set(k, arr);
+      map.set(f.parentId, arr);
     }
     for (const [, arr] of map) arr.sort((a, b) => a.name.localeCompare(b.name));
     return map;
@@ -109,6 +105,9 @@ export default function DashboardPage() {
   const onPdfChange:   React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
   const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
   const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
+
+  // (démo) données notes – branchement backend plus tard
+  const notes: Note[] = []; // ex: [{id:'1', title:'Lettre aux actionnaires - Juin 2024', excerpt:'Résumé...', kind:'pdf', updatedAt:'2025-08-22T15:52:00Z'}]
 
   return (
     <div className="min-h-screen">
@@ -166,9 +165,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Grille principale : Sidebar (gauche) / Main (droite) ─────────── */}
+      {/* ── Grille principale : Sidebar / Main ─────────────────────────── */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* ── Sidebar ────────────────────────────────────────── */}
+        {/* Sidebar */}
         <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6">
           {/* Vues */}
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -219,12 +218,12 @@ export default function DashboardPage() {
           </section>
         </aside>
 
-        {/* ── Main ───────────────────────────────────────────── */}
+        {/* Main */}
         <main className="order-1 lg:order-2 lg:col-span-9 space-y-8">
-          {/* Créer une note */}
+          {/* Créer une note – 4 boutons par ligne */}
           <section>
             <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
               <NoteActionCard title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
               <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
 
@@ -239,12 +238,16 @@ export default function DashboardPage() {
               <NoteActionCard title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️" onClick={() => { if (!requireQuota()) return; const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
 
               <NoteActionCard title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
+
+              {/* (option) Une carte "Importer un fichier" si tu veux remplacer le hint compact */}
+              {/* <NoteActionCard title="Importer un fichier" subtitle="PDF, vidéo, audio" icon="📥" onClick={() => openPicker(pdfRef)} /> */}
             </div>
 
-            <DropZone onClick={() => openPicker(pdfRef)} />
+            {/* Hint d’import compact */}
+            <CompactDropHint onClick={() => openPicker(pdfRef)} />
           </section>
 
-          {/* Mes notes */}
+          {/* Mes notes – liste claire et visible */}
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-semibold">Mes notes</h3>
@@ -263,11 +266,19 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-              <div className="mx-auto mb-2 text-3xl">📂</div>
-              <p>Aucune note pour le moment.</p>
-              <p className="text-sm">Importe un PDF/vidéo, colle un lien, ou crée une note vierge.</p>
-            </div>
+            {notes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+                <div className="mx-auto mb-2 text-3xl">📂</div>
+                <p>Aucune note pour le moment.</p>
+                <p className="text-sm">Importe un PDF/vidéo, colle un lien, ou crée une note vierge.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notes.map((n) => (
+                  <NoteRow key={n.id} note={n} onOpen={() => alert(`Ouvrir la note ${n.id}`)} />
+                ))}
+              </div>
+            )}
           </section>
         </main>
       </div>
@@ -308,29 +319,27 @@ function NoteActionCard(props: { title: string; subtitle?: string; icon?: string
   return (
     <button
       onClick={onClick}
-      className="group rounded-2xl border border-indigo-100 bg-white p-4 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="group rounded-xl border border-indigo-100 bg-white px-4 py-3 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
     >
       <div className="flex items-start gap-3">
         <div className="text-xl text-indigo-600/90">{icon}</div>
-        <div>
-          <div className="font-medium">{title}</div>
-          {subtitle ? <div className="text-sm text-slate-500">{subtitle}</div> : null}
+        <div className="min-w-0">
+          <div className="font-medium truncate">{title}</div>
+          {subtitle ? <div className="text-xs text-slate-500 truncate">{subtitle}</div> : null}
         </div>
       </div>
     </button>
   );
 }
 
-function DropZone({ onClick }:{ onClick?:()=>void }) {
+function CompactDropHint({ onClick }:{ onClick?:()=>void }) {
   return (
-    <button
-      onClick={onClick}
-      className="mt-3 w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-center text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      aria-label="Importer un fichier"
-      role="button"
-    >
-      Glisse un fichier (PDF, vidéo, audio) ou <span className="text-indigo-600 underline">clique pour choisir</span>.
-    </button>
+    <div className="mt-2 text-sm text-slate-600">
+      Glisse un fichier (PDF, vidéo, audio) ou{' '}
+      <button onClick={onClick} className="text-indigo-600 underline hover:text-indigo-700">
+        clique pour choisir
+      </button>.
+    </div>
   );
 }
 
@@ -340,6 +349,37 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
       <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-600 text-white text-xs">★</span>
       <span>Gratuit&nbsp;•&nbsp;{Math.min(used, quota)} / {quota}</span>
     </span>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Liste de notes (row)                                                       */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
+  const icon = note.kind === 'pdf' ? '📄' : note.kind === 'audio' ? '🎤' : note.kind === 'video' ? '🎬' : '📝';
+  const date = new Date(note.updatedAt).toLocaleString();
+
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full rounded-xl border border-slate-200 bg-white text-left p-4 shadow-sm hover:shadow-md transition flex items-start justify-between gap-4"
+    >
+      <div className="flex items-start gap-3 min-w-0">
+        <div className="text-xl">{icon}</div>
+        <div className="min-w-0">
+          <div className="font-semibold leading-tight truncate">{note.title}</div>
+          {note.excerpt ? <div className="text-sm text-slate-600 line-clamp-2">{note.excerpt}</div> : null}
+          <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5">
+              {icon === '📄' ? 'PDF' : icon === '🎤' ? 'Audio' : icon === '🎬' ? 'Vidéo' : 'Texte'}
+            </span>
+            <span>Modifiée&nbsp;: {date}</span>
+          </div>
+        </div>
+      </div>
+      <div className="text-slate-400">›</div>
+    </button>
   );
 }
 
