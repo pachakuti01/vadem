@@ -4,20 +4,24 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* Types & constantes                                                         */
-/* ────────────────────────────────────────────────────────────────────────── */
+/* ───────────── Types & constantes ───────────── */
+
 type Folder = { id: string; name: string; parentId: string | null };
-type Note = { id: string; title: string; excerpt?: string; kind?: 'pdf' | 'audio' | 'video' | 'text'; updatedAt: string };
+type Note = {
+  id: string;
+  title: string;
+  excerpt?: string;
+  kind?: 'pdf' | 'audio' | 'video' | 'text';
+  updatedAt: string;
+};
 
 const FREE_QUOTA = 3;
 const LS_KEY_FOLDERS  = 'vadem.folders';
 const LS_KEY_USED     = 'vadem.usedNotes';
 const LS_KEY_COLLAPSE = 'vadem.folders.collapse';
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* Page                                                                        */
-/* ────────────────────────────────────────────────────────────────────────── */
+/* ───────────── Page ───────────── */
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -63,7 +67,7 @@ export default function DashboardPage() {
   const addFolder = (name: string, parentId: string | null) => {
     const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
     setFolders((fs) => [...fs, { id, name, parentId }]);
-    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false })); // déplier le parent
+    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false }));
   };
   const promptAddChild = (pid: string) => {
     const n = prompt('Nom du sous-dossier :')?.trim();
@@ -106,8 +110,8 @@ export default function DashboardPage() {
   const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
   const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
 
-  // (démo) données notes – branchement backend plus tard
-  const notes: Note[] = []; // ex: [{id:'1', title:'Lettre aux actionnaires - Juin 2024', excerpt:'Résumé...', kind:'pdf', updatedAt:'2025-08-22T15:52:00Z'}]
+  // (démo) notes – branchement backend plus tard
+  const notes: Note[] = []; // Ex: [{ id:'1', title:'Titre', excerpt:'Résumé…', kind:'pdf', updatedAt:new Date().toISOString() }]
 
   return (
     <div className="min-h-screen">
@@ -167,8 +171,8 @@ export default function DashboardPage() {
 
       {/* ── Grille principale : Sidebar / Main ─────────────────────────── */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Sidebar */}
-        <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6">
+        {/* Sidebar (sticky) */}
+        <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6 lg:sticky lg:top-20 self-start">
           {/* Vues */}
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="text-xs font-semibold text-slate-500 uppercase px-1 mb-2">Vues</div>
@@ -220,9 +224,10 @@ export default function DashboardPage() {
 
         {/* Main */}
         <main className="order-1 lg:order-2 lg:col-span-9 space-y-8">
-          {/* Créer une note – 4 boutons par ligne */}
+          {/* Créer une note – 4 cartes compactes */}
           <section>
             <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
+
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
               <NoteActionCard title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
               <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
@@ -238,16 +243,15 @@ export default function DashboardPage() {
               <NoteActionCard title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️" onClick={() => { if (!requireQuota()) return; const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
 
               <NoteActionCard title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
-
-              {/* (option) Une carte "Importer un fichier" si tu veux remplacer le hint compact */}
-              {/* <NoteActionCard title="Importer un fichier" subtitle="PDF, vidéo, audio" icon="📥" onClick={() => openPicker(pdfRef)} /> */}
             </div>
 
-            {/* Hint d’import compact */}
-            <CompactDropHint onClick={() => openPicker(pdfRef)} />
+            {/* Hint d’import compact aligné à droite */}
+            <div className="mt-2 flex justify-end">
+              <CompactDropHint onClick={() => openPicker(pdfRef)} />
+            </div>
           </section>
 
-          {/* Mes notes – liste claire et visible */}
+          {/* Mes notes */}
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-semibold">Mes notes</h3>
@@ -267,10 +271,10 @@ export default function DashboardPage() {
             </div>
 
             {notes.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-slate-500">
                 <div className="mx-auto mb-2 text-3xl">📂</div>
-                <p>Aucune note pour le moment.</p>
-                <p className="text-sm">Importe un PDF/vidéo, colle un lien, ou crée une note vierge.</p>
+                <p className="text-sm">Aucune note pour le moment.</p>
+                <p className="text-xs">Importe un PDF/vidéo, colle un lien, ou crée une note vierge.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -286,9 +290,7 @@ export default function DashboardPage() {
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* UI atoms                                                                   */
-/* ────────────────────────────────────────────────────────────────────────── */
+/* ───────────── UI atoms ───────────── */
 
 function NavItem({ label, active=false, count, onClick }:{
   label: string; active?: boolean; count?: number; onClick?: () => void;
@@ -303,10 +305,10 @@ function NavItem({ label, active=false, count, onClick }:{
     >
       <span>{label}</span>
       {typeof count === "number" && (
-        <span className={[
-          "ml-3 inline-flex items-center rounded-full px-2 text-xs",
-          active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
-        ].join(" ")}>
+        <span className={
+          "ml-3 inline-flex items-center rounded-full px-2 text-xs " +
+          (active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600")
+        }>
           {count}
         </span>
       )}
@@ -319,7 +321,7 @@ function NoteActionCard(props: { title: string; subtitle?: string; icon?: string
   return (
     <button
       onClick={onClick}
-      className="group rounded-xl border border-indigo-100 bg-white px-4 py-3 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
     >
       <div className="flex items-start gap-3">
         <div className="text-xl text-indigo-600/90">{icon}</div>
@@ -334,7 +336,7 @@ function NoteActionCard(props: { title: string; subtitle?: string; icon?: string
 
 function CompactDropHint({ onClick }:{ onClick?:()=>void }) {
   return (
-    <div className="mt-2 text-sm text-slate-600">
+    <div className="text-sm text-slate-600">
       Glisse un fichier (PDF, vidéo, audio) ou{' '}
       <button onClick={onClick} className="text-indigo-600 underline hover:text-indigo-700">
         clique pour choisir
@@ -352,9 +354,7 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* Liste de notes (row)                                                       */
-/* ────────────────────────────────────────────────────────────────────────── */
+/* ───────────── Liste de notes (row) ───────────── */
 
 function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
   const icon = note.kind === 'pdf' ? '📄' : note.kind === 'audio' ? '🎤' : note.kind === 'video' ? '🎬' : '📝';
@@ -369,12 +369,12 @@ function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
         <div className="text-xl">{icon}</div>
         <div className="min-w-0">
           <div className="font-semibold leading-tight truncate">{note.title}</div>
-          {note.excerpt ? <div className="text-sm text-slate-600 line-clamp-2">{note.excerpt}</div> : null}
+          {note.excerpt ? <div className="text-sm text-slate-600">{note.excerpt}</div> : null}
           <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5">
               {icon === '📄' ? 'PDF' : icon === '🎤' ? 'Audio' : icon === '🎬' ? 'Vidéo' : 'Texte'}
             </span>
-            <span>Modifiée&nbsp;: {date}</span>
+            <span>Modifiée : {date}</span>
           </div>
         </div>
       </div>
@@ -383,9 +383,7 @@ function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* Arbre de dossiers                                                          */
-/* ────────────────────────────────────────────────────────────────────────── */
+/* ───────────── Arbre de dossiers ───────────── */
 
 function FolderTree({
   byParent,
