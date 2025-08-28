@@ -181,10 +181,10 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Grille : Dossiers (gauche) / Mes notes (droite) ──────────────── */}
-      <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[300px,1fr] gap-6">
-        {/* Dossiers */}
-        <aside className="md:sticky md:top-[64px] md:self-start">
+      {/* ── Grille principale : 12 colonnes (robuste) ─────────────────────── */}
+      <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Dossiers (col gauche) */}
+        <aside className="md:col-span-3 md:sticky md:top-[64px] md:self-start">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
             <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
@@ -200,8 +200,8 @@ export default function DashboardPage() {
           />
         </aside>
 
-        {/* Mes notes */}
-        <main>
+        {/* Mes notes (col droite) */}
+        <main className="md:col-span-9">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <FilterChip label="Toutes" active />
             <FilterChip label="Récents" />
@@ -384,3 +384,4 @@ function FolderNode({
     </li>
   );
 }
+
