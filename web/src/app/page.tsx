@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const supabase = await createClient(); // createClient est async
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -28,6 +28,30 @@ export default async function Home() {
 
   return (
     <>
+      {/* Header marketing (uniquement sur la home) */}
+      <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6 md:px-8">
+          <Link href="/" className="flex items-center">
+            <Image src="/logo-vadem-full.svg" alt="Vadem" width={120} height={28} priority />
+          </Link>
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="rounded-full border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              Ouvrir l’app
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-full border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              Démarrer
+            </Link>
+          )}
+        </div>
+      </header>
+
       <main className="min-h-screen">
         {/* HERO */}
         <section className="bg-white">
