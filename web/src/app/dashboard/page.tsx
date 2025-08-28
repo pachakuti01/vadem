@@ -36,12 +36,20 @@ export default function DashboardPage() {
   });
   useEffect(() => localStorage.setItem(LS_KEY_FOLDERS, JSON.stringify(folders)), [folders]);
 
-  const addFolder = () => {
-    const name = prompt('Nom du dossier :')?.trim();
+  // Création inline d’un dossier
+  const [adding, setAdding] = useState(false);
+  const [newFolder, setNewFolder] = useState('');
+
+  const submitNewFolder: React.FormEventHandler<HTMLFormElement> = (e) => {
+    e.preventDefault();
+    const name = newFolder.trim();
     if (!name) return;
     const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
     setFolders((f) => [...f, { id, name }]);
+    setNewFolder('');
+    setAdding(false);
   };
+
   const renameFolder = (id: string) => {
     const cur = folders.find((x) => x.id === id);
     if (!cur) return;
@@ -129,13 +137,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Mobile: bouton + avatar */}
-          <button
-            onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
-            className="sm:hidden rounded-xl bg-indigo-600 px-4 py-2 text-white"
-          >
-            Nouvelle note
-          </button>
+          {/* Mobile: avatar */}
           <button
             onClick={() => alert('Menu utilisateur')}
             className="ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-slate-700"
@@ -161,23 +163,95 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* --- Layout avec sidebar dossiers --- */}
+      {/* ===== Barre de création (plein-largeur, juste sous le header) ===== */}
+      <section className="mx-auto max-w-7xl px-4 pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Créer une note</h2>
+
+          {/* CTA global desktop */}
+          <button
+            onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
+            className="hidden sm:inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            Nouvelle note
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤"
+                      onClick={() => openPicker(audioRef)} />
+          <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
+
+          <CardButton title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬"
+                      onClick={() => openPicker(videoRef)} />
+          <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
+
+          <CardButton title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄"
+                      onClick={() => openPicker(pdfRef)} />
+          <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
+
+          <CardButton title="Lien Web" subtitle="Résumé page web" icon="🔗"
+                      onClick={() => {
+                        if (!requireQuota()) return;
+                        const url = prompt('URL à importer :');
+                        if (url) console.log('URL:', url);
+                      }} />
+
+          <CardButton title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️"
+                      onClick={() => {
+                        if (!requireQuota()) return;
+                        const url = prompt('URL YouTube :');
+                        if (url) console.log('YouTube:', url);
+                      }} />
+
+          <CardButton title="Note vierge" subtitle="Commencer au clavier" icon="✏️"
+                      onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
+        </div>
+      </section>
+
+      {/* ===== Grille principale : sidebar + récentes ===== */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6">
-        {/* Sidebar */}
+        {/* Sidebar réorganisée */}
         <aside className="md:sticky md:top-[64px] md:self-start">
-          <nav>
+          {/* Vues rapides */}
+          <div>
             <div className="text-xs font-semibold text-slate-500 uppercase mb-2">Vues rapides</div>
             <ul className="space-y-1">
               <li><button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100">📌 Épinglées</button></li>
               <li><button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100">🕒 Récentes</button></li>
             </ul>
-          </nav>
+          </div>
 
+          {/* Dossiers avec création inline */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-              <button onClick={addFolder} className="text-indigo-600 hover:underline text-sm">+ Nouveau</button>
+              {!adding && (
+                <button onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">
+                  + Dossier
+                </button>
+              )}
             </div>
+
+            {adding && (
+              <form onSubmit={submitNewFolder} className="mb-2 flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={newFolder}
+                  onChange={(e) => setNewFolder(e.target.value)}
+                  placeholder="Nom du dossier"
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white">
+                  Ajouter
+                </button>
+                <button type="button" onClick={() => { setAdding(false); setNewFolder(''); }}
+                  className="rounded-lg border px-3 py-1.5 text-sm">
+                  Annuler
+                </button>
+              </form>
+            )}
+
             {folders.length === 0 ? (
               <div className="text-slate-500 text-sm px-3 py-2">Aucun dossier</div>
             ) : (
@@ -196,52 +270,9 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        {/* Contenu principal */}
+        {/* Contenu principal : Récentes */}
         <main>
           <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Nouvelle note</h2>
-              <button
-                onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
-                className="hidden sm:inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                Nouvelle note
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤"
-                          onClick={() => openPicker(audioRef)} />
-              <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
-
-              <CardButton title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬"
-                          onClick={() => openPicker(videoRef)} />
-              <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
-
-              <CardButton title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄"
-                          onClick={() => openPicker(pdfRef)} />
-              <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
-
-              <CardButton title="Lien Web" subtitle="Résumé page web" icon="🔗"
-                          onClick={() => {
-                            if (!requireQuota()) return;
-                            const url = prompt('URL à importer :');
-                            if (url) console.log('URL:', url);
-                          }} />
-
-              <CardButton title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️"
-                          onClick={() => {
-                            if (!requireQuota()) return;
-                            const url = prompt('URL YouTube :');
-                            if (url) console.log('YouTube:', url);
-                          }} />
-
-              <CardButton title="Note vierge" subtitle="Commencer au clavier" icon="✏️"
-                          onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
-            </div>
-          </section>
-
-          <section className="mt-10">
             <h3 className="text-base font-semibold mb-3">Récentes</h3>
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
               <div className="mx-auto mb-2 text-3xl">📂</div>
@@ -283,3 +314,4 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
     </span>
   );
 }
+
