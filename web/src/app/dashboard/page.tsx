@@ -198,17 +198,16 @@ export default function DashboardPage() {
 
         {/* Contenu principal */}
         <main>
-          <div className="hidden sm:flex justify-end mb-4">
-            <button
-              onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              Nouvelle note
-            </button>
-          </div>
-
           <section>
-            <h2 className="text-lg font-semibold mb-3">Nouvelle note</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Nouvelle note</h2>
+              <button
+                onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
+                className="hidden sm:inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                Nouvelle note
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤"
@@ -284,5 +283,3 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
     </span>
   );
 }
-
-
