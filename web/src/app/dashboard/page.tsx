@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
 
 type Folder = { id: string; name: string };
 
@@ -14,7 +13,7 @@ const LS_KEY_USED = 'vadem.usedNotes';
 export default function DashboardPage() {
   const router = useRouter();
 
-  // ---- Refs sûres (pas d'erreur TS)
+  // ---- Refs sûres
   const searchRef = useRef<HTMLInputElement | null>(null);
   const pdfRef = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLInputElement | null>(null);
@@ -55,41 +54,49 @@ export default function DashboardPage() {
     setFolders((f) => f.filter((x) => x.id !== id));
   };
 
+  // ---- Garde-fou quota
+  const requireQuota = () => {
+    if (used >= FREE_QUOTA) {
+      const go = confirm('Tu as atteint la limite du plan gratuit. Mettre à niveau ?');
+      if (go) router.push('/pricing');
+      return false;
+    }
+    return true;
+  };
+
   // ---- Upload helpers
-  const openPicker = (ref: React.MutableRefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>) =>
+  const openPicker = (
+    ref: React.MutableRefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>
+  ) => {
+    if (!requireQuota()) return;
     ref.current?.click();
+  };
 
   const onPdfChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const file = e.currentTarget.files?.[0];
     if (!file) return;
+    if (!requireQuota()) return;
     console.log('PDF:', file.name);
     setUsed((u) => Math.min(FREE_QUOTA, u + 1));
   };
   const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const file = e.currentTarget.files?.[0];
     if (!file) return;
+    if (!requireQuota()) return;
     console.log('Audio:', file.name);
     setUsed((u) => Math.min(FREE_QUOTA, u + 1));
   };
   const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const file = e.currentTarget.files?.[0];
     if (!file) return;
+    if (!requireQuota()) return;
     console.log('Video:', file.name);
     setUsed((u) => Math.min(FREE_QUOTA, u + 1));
   };
 
-// Calcul en haut
-const usagePct = useMemo(
-  () => Math.round((Math.min(used, FREE_QUOTA) / FREE_QUOTA) * 100),
-  [used]
-);
-
-// Usage
-<PlanCard used={used} quota={FREE_QUOTA} pct={usagePct} onUpgrade={() => router.push('/pricing')} />
-
   return (
     <div className="min-h-screen">
-      {/* --- Topbar minimal --- */}
+      {/* --- Topbar --- */}
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 font-semibold">
@@ -111,8 +118,8 @@ const usagePct = useMemo(
             </div>
           </div>
 
-          {/* Compteur plan + Upgrade */}
-          <div className="hidden sm:flex items-center gap-3">
+          {/* Badge + Upgrade dans le header */}
+          <div className="ml-auto hidden sm:flex items-center gap-3">
             <PlanBadge used={used} quota={FREE_QUOTA} />
             <button
               onClick={() => router.push('/pricing')}
@@ -122,13 +129,13 @@ const usagePct = useMemo(
             </button>
           </div>
 
+          {/* Mobile: bouton + avatar */}
           <button
-            onClick={() => alert('Créer une note (à brancher)')}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:hidden"
+            onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
+            className="sm:hidden rounded-xl bg-indigo-600 px-4 py-2 text-white"
           >
             Nouvelle note
           </button>
-
           <button
             onClick={() => alert('Menu utilisateur')}
             className="ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-slate-700"
@@ -138,6 +145,21 @@ const usagePct = useMemo(
           </button>
         </div>
       </header>
+
+      {/* Bandeau quota atteint (option) */}
+      {used >= FREE_QUOTA && (
+        <div className="mx-auto max-w-7xl px-4 pt-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 flex items-center justify-between">
+            <span>Tu as atteint la limite du plan gratuit.</span>
+            <button
+              onClick={() => router.push('/pricing')}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 text-white hover:bg-amber-500"
+            >
+              Mettre à niveau
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* --- Layout avec sidebar dossiers --- */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6">
@@ -172,35 +194,13 @@ const usagePct = useMemo(
               </ul>
             )}
           </div>
-
-          {/* Plan / Mettre à niveau */}
-<div className="mt-6">
-  <PlanCard
-    used={used}
-    quota={FREE_QUOTA}
-    pct={usagePct}                      // on passe le pourcentage ici
-    onUpgrade={() => router.push('/pricing')}
-  />
-</div>
-
-
-          {/* Plan meter visible en mobile aussi */}
-          <div className="mt-6">
-           <PlanCard
-  used={used}
-  quota={FREE_QUOTA}
-  pct={usagePct}
-  onUpgrade={() => router.push('/pricing')}
-/>
-
-          </div>
         </aside>
 
         {/* Contenu principal */}
         <main>
           <div className="hidden sm:flex justify-end mb-4">
             <button
-              onClick={() => alert('Créer une note (à brancher)')}
+              onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               Nouvelle note
@@ -224,13 +224,21 @@ const usagePct = useMemo(
               <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
 
               <CardButton title="Lien Web" subtitle="Résumé page web" icon="🔗"
-                          onClick={() => { const url = prompt('URL à importer :'); if (url) console.log('URL:', url); }} />
+                          onClick={() => {
+                            if (!requireQuota()) return;
+                            const url = prompt('URL à importer :');
+                            if (url) console.log('URL:', url);
+                          }} />
 
               <CardButton title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️"
-                          onClick={() => { const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
+                          onClick={() => {
+                            if (!requireQuota()) return;
+                            const url = prompt('URL YouTube :');
+                            if (url) console.log('YouTube:', url);
+                          }} />
 
               <CardButton title="Note vierge" subtitle="Commencer au clavier" icon="✏️"
-                          onClick={() => alert('Créer une note vide (à brancher)')} />
+                          onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
             </div>
           </section>
 
@@ -277,45 +285,4 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
   );
 }
 
-function PlanCard({
-  used,
-  quota,
-  pct,
-  onUpgrade,
-}: {
-  used: number;
-  quota: number;
-  pct: number;              // ⬅️ nouveau
-  onUpgrade: () => void;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between">
-        <div className="font-medium">Plan gratuit</div>
-        <div className="text-sm text-slate-600">
-          {Math.min(used, quota)} / {quota} notes
-        </div>
-      </div>
-
-      {/* Progress bar accessible */}
-      <div
-        className="mt-2 h-2 w-full rounded-full bg-slate-100"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
-        aria-label="Utilisation du quota"
-      >
-        <div className="h-2 rounded-full bg-indigo-600" style={{ width: `${pct}%` }} />
-      </div>
-
-      <button
-        onClick={onUpgrade}
-        className="mt-3 w-full rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-700 hover:bg-indigo-100"
-      >
-        Mettre à niveau
-      </button>
-    </div>
-  );
-}
 
