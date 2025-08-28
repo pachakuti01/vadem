@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -14,9 +14,9 @@ type Folder = {
 };
 
 const FREE_QUOTA = 3;
-const LS_KEY_FOLDERS   = 'vadem.folders';
-const LS_KEY_USED      = 'vadem.usedNotes';
-const LS_KEY_COLLAPSE  = 'vadem.folders.collapse';
+const LS_KEY_FOLDERS  = 'vadem.folders';
+const LS_KEY_USED     = 'vadem.usedNotes';
+const LS_KEY_COLLAPSE = 'vadem.folders.collapse';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* Page                                                                        */
@@ -67,7 +67,7 @@ export default function DashboardPage() {
   const addFolder = (name: string, parentId: string | null) => {
     const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
     setFolders((fs) => [...fs, { id, name, parentId }]);
-    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false }));
+    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false })); // déplier le parent
   };
   const promptAddRoot  = () => { const n = prompt('Nom du dossier :')?.trim(); if (n) addFolder(n, null); };
   const promptAddChild = (pid: string) => { const n = prompt('Nom du sous-dossier :')?.trim(); if (n) addFolder(n, pid); };
@@ -160,7 +160,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Créer une note (plein-largeur, pas de bouton “Nouvelle note”) ── */}
+      {/* ── Créer une note ───────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 pt-4">
         <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -384,7 +384,3 @@ function FolderNode({
     </li>
   );
 }
-
-
-
-
