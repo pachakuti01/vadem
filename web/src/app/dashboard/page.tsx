@@ -45,7 +45,7 @@ export default function DashboardPage() {
     const name = newFolder.trim();
     if (!name) return;
     const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
-    setFolders((f) => [...f, { id, name }]);
+    setFolders((f) => [...f, { id, name }].sort((a, b) => a.name.localeCompare(b.name)));
     setNewFolder('');
     setAdding(false);
   };
@@ -55,7 +55,9 @@ export default function DashboardPage() {
     if (!cur) return;
     const name = prompt('Nouveau nom :', cur.name)?.trim();
     if (!name) return;
-    setFolders((f) => f.map((x) => (x.id === id ? { ...x, name } : x)));
+    setFolders((f) =>
+      f.map((x) => (x.id === id ? { ...x, name } : x)).sort((a, b) => a.name.localeCompare(b.name)),
+    );
   };
   const deleteFolder = (id: string) => {
     if (!confirm('Supprimer ce dossier ?')) return;
@@ -163,18 +165,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ===== Barre de création (plein-largeur, juste sous le header) ===== */}
+      {/* ===== Barre de création (plein-largeur, sous header) ===== */}
       <section className="mx-auto max-w-7xl px-4 pt-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3">
           <h2 className="text-lg font-semibold">Créer une note</h2>
-
-          {/* CTA global desktop */}
-          <button
-            onClick={() => (requireQuota() ? alert('Créer une note (à brancher)') : null)}
-            className="hidden sm:inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            Nouvelle note
-          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -209,71 +203,83 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ===== Grille principale : sidebar + récentes ===== */}
+      {/* ===== Grille principale : sidebar + mes notes ===== */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6">
-        {/* Sidebar réorganisée */}
+        {/* Sidebar : uniquement dossiers (vues rapides retirées pour MVP) */}
         <aside className="md:sticky md:top-[64px] md:self-start">
-          {/* Vues rapides */}
-          <div>
-            <div className="text-xs font-semibold text-slate-500 uppercase mb-2">Vues rapides</div>
+          {/* Header dossiers */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
+            {!adding && (
+              <button onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">
+                + Dossier
+              </button>
+            )}
+          </div>
+
+          {/* Création inline */}
+          {adding && (
+            <form onSubmit={submitNewFolder} className="mb-2 flex items-center gap-2">
+              <input
+                autoFocus
+                value={newFolder}
+                onChange={(e) => setNewFolder(e.target.value)}
+                placeholder="Nom du dossier"
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white">
+                Ajouter
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdding(false);
+                  setNewFolder('');
+                }}
+                className="rounded-lg border px-3 py-1.5 text-sm"
+              >
+                Annuler
+              </button>
+            </form>
+          )}
+
+          {/* Liste des dossiers */}
+          {folders.length === 0 ? (
+            <div className="text-slate-500 text-sm px-3 py-2">Aucun dossier</div>
+          ) : (
             <ul className="space-y-1">
-              <li><button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100">📌 Épinglées</button></li>
-              <li><button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100">🕒 Récentes</button></li>
+              {folders.map((f) => (
+                <li
+                  key={f.id}
+                  className="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100"
+                >
+                  <button className="text-left truncate flex-1">📁 {f.name}</button>
+                  <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
+                    <button onClick={() => renameFolder(f.id)} title="Renommer">
+                      ✏️
+                    </button>
+                    <button onClick={() => deleteFolder(f.id)} title="Supprimer">
+                      🗑️
+                    </button>
+                  </div>
+                </li>
+              ))}
             </ul>
-          </div>
-
-          {/* Dossiers avec création inline */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-              {!adding && (
-                <button onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">
-                  + Dossier
-                </button>
-              )}
-            </div>
-
-            {adding && (
-              <form onSubmit={submitNewFolder} className="mb-2 flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={newFolder}
-                  onChange={(e) => setNewFolder(e.target.value)}
-                  placeholder="Nom du dossier"
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white">
-                  Ajouter
-                </button>
-                <button type="button" onClick={() => { setAdding(false); setNewFolder(''); }}
-                  className="rounded-lg border px-3 py-1.5 text-sm">
-                  Annuler
-                </button>
-              </form>
-            )}
-
-            {folders.length === 0 ? (
-              <div className="text-slate-500 text-sm px-3 py-2">Aucun dossier</div>
-            ) : (
-              <ul className="space-y-1">
-                {folders.map((f) => (
-                  <li key={f.id} className="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100">
-                    <button className="text-left truncate flex-1">📁 {f.name}</button>
-                    <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
-                      <button onClick={() => renameFolder(f.id)} title="Renommer">✏️</button>
-                      <button onClick={() => deleteFolder(f.id)} title="Supprimer">🗑️</button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          )}
         </aside>
 
-        {/* Contenu principal : Récentes */}
+        {/* Contenu principal : Mes notes */}
         <main>
+          {/* Filtres compacts (remplace "Vues rapides") */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <FilterChip label="Toutes" active />
+            <FilterChip label="Récents" />
+            <FilterChip label="Épinglées" />
+            <FilterChip label="Non classées" />
+          </div>
+
           <section>
-            <h3 className="text-base font-semibold mb-3">Récentes</h3>
+            <h3 className="text-base font-semibold mb-3">Mes notes</h3>
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
               <div className="mx-auto mb-2 text-3xl">📂</div>
               <p>Aucune note pour le moment.</p>
@@ -306,6 +312,22 @@ function CardButton(props: { title: string; subtitle?: string; icon?: string; on
   );
 }
 
+function FilterChip({ label, active = false }: { label: string; active?: boolean }) {
+  return (
+    <button
+      className={[
+        "rounded-full border px-3 py-1 text-sm",
+        active
+          ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+      ].join(" ")}
+      onClick={() => console.log('filter:', label)}
+    >
+      {label}
+    </button>
+  );
+}
+
 function PlanBadge({ used, quota }: { used: number; quota: number }) {
   return (
     <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm">
@@ -314,4 +336,5 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
     </span>
   );
 }
+
 
