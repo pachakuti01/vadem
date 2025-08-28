@@ -1,53 +1,76 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-type Folder = { id: string; name: string };
+type Folder = {
+  id: string;
+  name: string;
+  parentId: string | null; // null = dossier racine
+};
 
 const FREE_QUOTA = 3; // quota plan gratuit (MVP)
 const LS_KEY_FOLDERS = 'vadem.folders';
 const LS_KEY_USED = 'vadem.usedNotes';
+const LS_KEY_COLLAPSE = 'vadem.folders.collapse';
 
 export default function DashboardPage() {
   const router = useRouter();
 
   // ---- Refs sûres
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const pdfRef = useRef<HTMLInputElement | null>(null);
+  const pdfRef   = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLInputElement | null>(null);
 
-  // ---- Plan & compteur (MVP -> localStorage ; ensuite brancher backend)
+  // ---- Compteur (MVP -> localStorage)
   const [used, setUsed] = useState<number>(() => {
     const v = Number(localStorage.getItem(LS_KEY_USED));
     return Number.isFinite(v) && v >= 0 ? v : 0;
   });
   useEffect(() => localStorage.setItem(LS_KEY_USED, String(used)), [used]);
 
-  // ---- Dossiers (MVP -> localStorage)
+  // ---- Dossiers (flat) + état de repli
   const [folders, setFolders] = useState<Folder[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(LS_KEY_FOLDERS) || '[]') as Folder[];
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem(LS_KEY_FOLDERS) || '[]') as Folder[]; }
+    catch { return []; }
   });
   useEffect(() => localStorage.setItem(LS_KEY_FOLDERS, JSON.stringify(folders)), [folders]);
 
-  // Création inline d’un dossier
-  const [adding, setAdding] = useState(false);
-  const [newFolder, setNewFolder] = useState('');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY_COLLAPSE) || '{}') as Record<string, boolean>; }
+    catch { return {}; }
+  });
+  useEffect(() => localStorage.setItem(LS_KEY_COLLAPSE, JSON.stringify(collapsed)), [collapsed]);
 
-  const submitNewFolder: React.FormEventHandler<HTMLFormElement> = (e) => {
-    e.preventDefault();
-    const name = newFolder.trim();
-    if (!name) return;
+  // ---- Helpers dossiers
+  const byParent = useMemo(() => {
+    const map = new Map<string | null, Folder[]>();
+    for (const f of folders) {
+      const k = f.parentId;
+      const arr = map.get(k) ?? [];
+      arr.push(f);
+      map.set(k, arr);
+    }
+    // tri alpha par fratrie
+    for (const [, arr] of map) arr.sort((a, b) => a.name.localeCompare(b.name));
+    return map;
+  }, [folders]);
+
+  const addFolder = (name: string, parentId: string | null = null) => {
     const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
-    setFolders((f) => [...f, { id, name }].sort((a, b) => a.name.localeCompare(b.name)));
-    setNewFolder('');
-    setAdding(false);
+    setFolders((fs) => [...fs, { id, name, parentId }]);
+    if (parentId) setCollapsed((c) => ({ ...c, [parentId]: false })); // déplier le parent à la création
+  };
+
+  const promptAddRoot = () => {
+    const name = prompt('Nom du dossier :')?.trim();
+    if (name) addFolder(name, null);
+  };
+  const promptAddChild = (parentId: string) => {
+    const name = prompt('Nom du sous-dossier :')?.trim();
+    if (name) addFolder(name, parentId);
   };
 
   const renameFolder = (id: string) => {
@@ -55,14 +78,23 @@ export default function DashboardPage() {
     if (!cur) return;
     const name = prompt('Nouveau nom :', cur.name)?.trim();
     if (!name) return;
-    setFolders((f) =>
-      f.map((x) => (x.id === id ? { ...x, name } : x)).sort((a, b) => a.name.localeCompare(b.name)),
-    );
+    setFolders((fs) => fs.map((x) => (x.id === id ? { ...x, name } : x)));
   };
+
   const deleteFolder = (id: string) => {
-    if (!confirm('Supprimer ce dossier ?')) return;
-    setFolders((f) => f.filter((x) => x.id !== id));
+    // supprime aussi les descendants
+    if (!confirm('Supprimer ce dossier et son contenu ?')) return;
+    const toDelete = new Set<string>();
+    const visit = (target: string) => {
+      toDelete.add(target);
+      for (const f of folders) if (f.parentId === target) visit(f.id);
+    };
+    visit(id);
+    setFolders((fs) => fs.filter((x) => !toDelete.has(x.id)));
   };
+
+  const toggleCollapse = (id: string) =>
+    setCollapsed((c) => ({ ...c, [id]: !c[id] }));
 
   // ---- Garde-fou quota
   const requireQuota = () => {
@@ -75,9 +107,7 @@ export default function DashboardPage() {
   };
 
   // ---- Upload helpers
-  const openPicker = (
-    ref: React.MutableRefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>
-  ) => {
+  const openPicker = (ref: React.MutableRefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>) => {
     if (!requireQuota()) return;
     ref.current?.click();
   };
@@ -139,7 +169,6 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Mobile: avatar */}
           <button
             onClick={() => alert('Menu utilisateur')}
             className="ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-slate-700"
@@ -150,7 +179,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Bandeau quota atteint (option) */}
+      {/* Bandeau quota atteint */}
       {used >= FREE_QUOTA && (
         <div className="mx-auto max-w-7xl px-4 pt-4">
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 flex items-center justify-between">
@@ -165,12 +194,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ===== Barre de création (plein-largeur, sous header) ===== */}
+      {/* ===== Créer une note ===== */}
       <section className="mx-auto max-w-7xl px-4 pt-4">
-        <div className="mb-3">
-          <h2 className="text-lg font-semibold">Créer une note</h2>
-        </div>
-
+        <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           <CardButton title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤"
                       onClick={() => openPicker(audioRef)} />
@@ -203,74 +229,29 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ===== Grille principale : sidebar + mes notes ===== */}
-      <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6">
-        {/* Sidebar : uniquement dossiers (vues rapides retirées pour MVP) */}
+      {/* ===== Grille principale : Dossiers à gauche / Mes notes à droite ===== */}
+      <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 md:grid-cols-[300px,1fr] gap-6">
+        {/* Panneau Dossiers (plus de +Dossier perdu) */}
         <aside className="md:sticky md:top-[64px] md:self-start">
-          {/* Header dossiers */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="mb-2 flex items-center justify-between">
             <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-            {!adding && (
-              <button onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">
-                + Dossier
-              </button>
-            )}
+            <button onClick={promptAddRoot} className="text-indigo-600 hover:underline text-sm">
+              + Dossier
+            </button>
           </div>
 
-          {/* Création inline */}
-          {adding && (
-            <form onSubmit={submitNewFolder} className="mb-2 flex items-center gap-2">
-              <input
-                autoFocus
-                value={newFolder}
-                onChange={(e) => setNewFolder(e.target.value)}
-                placeholder="Nom du dossier"
-                className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white">
-                Ajouter
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdding(false);
-                  setNewFolder('');
-                }}
-                className="rounded-lg border px-3 py-1.5 text-sm"
-              >
-                Annuler
-              </button>
-            </form>
-          )}
-
-          {/* Liste des dossiers */}
-          {folders.length === 0 ? (
-            <div className="text-slate-500 text-sm px-3 py-2">Aucun dossier</div>
-          ) : (
-            <ul className="space-y-1">
-              {folders.map((f) => (
-                <li
-                  key={f.id}
-                  className="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100"
-                >
-                  <button className="text-left truncate flex-1">📁 {f.name}</button>
-                  <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
-                    <button onClick={() => renameFolder(f.id)} title="Renommer">
-                      ✏️
-                    </button>
-                    <button onClick={() => deleteFolder(f.id)} title="Supprimer">
-                      🗑️
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <FolderTree
+            byParent={byParent}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            onAddChild={promptAddChild}
+            onRename={renameFolder}
+            onDelete={deleteFolder}
+          />
         </aside>
 
-        {/* Contenu principal : Mes notes */}
+        {/* Mes notes */}
         <main>
-          {/* Filtres compacts (remplace "Vues rapides") */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <FilterChip label="Toutes" active />
             <FilterChip label="Récents" />
@@ -292,7 +273,7 @@ export default function DashboardPage() {
   );
 }
 
-/* ----------------- UI atoms ----------------- */
+/* ----------------- UI atoms / Folder tree ----------------- */
 
 function CardButton(props: { title: string; subtitle?: string; icon?: string; onClick?: () => void }) {
   const { title, subtitle, icon = '📎', onClick } = props;
@@ -336,5 +317,118 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
     </span>
   );
 }
+
+/** Arbre récursif (à partir de la map par parent) */
+function FolderTree({
+  byParent,
+  collapsed,
+  onToggle,
+  onAddChild,
+  onRename,
+  onDelete,
+}: {
+  byParent: Map<string | null, Folder[]>;
+  collapsed: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  onAddChild: (parentId: string) => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const roots = byParent.get(null) ?? [];
+  if (roots.length === 0) {
+    return <div className="text-slate-500 text-sm px-3 py-2">Aucun dossier</div>;
+  }
+  return (
+    <ul className="space-y-1">
+      {roots.map((r) => (
+        <FolderNode
+          key={r.id}
+          node={r}
+          depth={0}
+          byParent={byParent}
+          collapsed={collapsed}
+          onToggle={onToggle}
+          onAddChild={onAddChild}
+          onRename={onRename}
+          onDelete={onDelete}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function FolderNode({
+  node,
+  depth,
+  byParent,
+  collapsed,
+  onToggle,
+  onAddChild,
+  onRename,
+  onDelete,
+}: {
+  node: Folder;
+  depth: number;
+  byParent: Map<string | null, Folder[]>;
+  collapsed: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  onAddChild: (parentId: string) => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const children = byParent.get(node.id) ?? [];
+  const hasChildren = children.length > 0;
+  const isCollapsed = !!collapsed[node.id];
+
+  return (
+    <li>
+      <div
+        className="group flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-slate-100"
+        style={{ paddingLeft: 8 + depth * 14 }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {hasChildren ? (
+            <button
+              onClick={() => onToggle(node.id)}
+              className="inline-flex h-5 w-5 items-center justify-center rounded hover:bg-slate-200"
+              aria-label={isCollapsed ? "Déplier" : "Replier"}
+              title={isCollapsed ? "Déplier" : "Replier"}
+            >
+              {isCollapsed ? '▶' : '▼'}
+            </button>
+          ) : (
+            <span className="inline-flex h-5 w-5 items-center justify-center opacity-40">•</span>
+          )}
+          <button className="truncate text-left">📁 {node.name}</button>
+        </div>
+
+        <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
+          <button onClick={() => onAddChild(node.id)} title="Sous-dossier">➕</button>
+          <button onClick={() => onRename(node.id)} title="Renommer">✏️</button>
+          <button onClick={() => onDelete(node.id)} title="Supprimer">🗑️</button>
+        </div>
+      </div>
+
+      {hasChildren && !isCollapsed && (
+        <ul className="space-y-1">
+          {children.map((c) => (
+            <FolderNode
+              key={c.id}
+              node={c}
+              depth={depth + 1}
+              byParent={byParent}
+              collapsed={collapsed}
+              onToggle={onToggle}
+              onAddChild={onAddChild}
+              onRename={onRename}
+              onDelete={onDelete}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 
 
