@@ -111,7 +111,7 @@ export default function DashboardPage() {
   const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
 
   // (démo) notes – branchement backend plus tard
-  const notes: Note[] = []; // Ex: [{ id:'1', title:'Titre', excerpt:'Résumé…', kind:'pdf', updatedAt:new Date().toISOString() }]
+  const notes: Note[] = [];
 
   return (
     <div className="min-h-screen">
@@ -224,30 +224,57 @@ export default function DashboardPage() {
 
         {/* Main */}
         <main className="order-1 lg:order-2 lg:col-span-9 space-y-8">
-          {/* Créer une note – 4 cartes compactes */}
+          {/* Créer une note – 4 cartes compactes groupées */}
           <section>
             <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
 
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-              <NoteActionCard title="Enregistrer l’audio" subtitle="Parler, transcrire, résumer" icon="🎤" onClick={() => openPicker(audioRef)} />
+              {/* AUDIO (groupé) */}
+              <AudioCard
+                onRecord={() => alert('Enregistrement audio (à brancher)')}
+                onUpload={() => openPicker(audioRef)}
+              />
               <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
 
-              <NoteActionCard title="Téléverser une vidéo" subtitle="MP4, WEBM, MOV" icon="🎬" onClick={() => openPicker(videoRef)} />
+              {/* VIDEO (groupé) */}
+              <VideoCard
+                onUpload={() => openPicker(videoRef)}
+                onYouTube={() => {
+                  if (!requireQuota()) return;
+                  const url = prompt('URL YouTube :');
+                  if (url) console.log('YouTube:', url);
+                }}
+              />
               <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
 
-              <NoteActionCard title="Téléverser un PDF" subtitle="Extraction + résumé" icon="📄" onClick={() => openPicker(pdfRef)} />
+              {/* PDF */}
+              <NoteActionCard
+                title="Téléverser un PDF"
+                subtitle="Extraction + résumé"
+                icon="📄"
+                onClick={() => openPicker(pdfRef)}
+              />
               <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
 
-              <NoteActionCard title="Lien Web" subtitle="Résumé page web" icon="🔗" onClick={() => { if (!requireQuota()) return; const url = prompt('URL à importer :'); if (url) console.log('URL:', url); }} />
+              {/* LIEN WEB */}
+              <NoteActionCard
+                title="Lien Web"
+                subtitle="Résumé page web"
+                icon="🔗"
+                onClick={() => {
+                  if (!requireQuota()) return;
+                  const url = prompt('URL à importer :');
+                  if (url) console.log('URL:', url);
+                }}
+              />
 
-              <NoteActionCard title="Vidéo YouTube" subtitle="Saisir l’URL YouTube" icon="▶️" onClick={() => { if (!requireQuota()) return; const url = prompt('URL YouTube :'); if (url) console.log('YouTube:', url); }} />
-
-              <NoteActionCard title="Note vierge" subtitle="Commencer au clavier" icon="✏️" onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)} />
-            </div>
-
-            {/* Hint d’import compact aligné à droite */}
-            <div className="mt-2 flex justify-end">
-              <CompactDropHint onClick={() => openPicker(pdfRef)} />
+              {/* NOTE VIERGE */}
+              <NoteActionCard
+                title="Note vierge"
+                subtitle="Commencer au clavier"
+                icon="✏️"
+                onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)}
+              />
             </div>
           </section>
 
@@ -334,13 +361,62 @@ function NoteActionCard(props: { title: string; subtitle?: string; icon?: string
   );
 }
 
-function CompactDropHint({ onClick }:{ onClick?:()=>void }) {
+/* Pills & cartes groupées */
+
+function PillButton({ children, onClick, variant = "solid" }:{
+  children: React.ReactNode;
+  onClick?: () => void;
+  variant?: "solid" | "ghost";
+}) {
   return (
-    <div className="text-sm text-slate-600">
-      Glisse un fichier (PDF, vidéo, audio) ou{' '}
-      <button onClick={onClick} className="text-indigo-600 underline hover:text-indigo-700">
-        clique pour choisir
-      </button>.
+    <button
+      onClick={onClick}
+      className={[
+        "px-2.5 py-1 text-xs rounded-md",
+        variant === "solid"
+          ? "bg-indigo-600 text-white hover:bg-indigo-500"
+          : "border border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function AudioCard({ onRecord, onUpload }:{ onRecord: () => void; onUpload: () => void }) {
+  return (
+    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500">
+      <div className="flex items-start gap-3">
+        <div className="text-xl text-indigo-600/90">🎤</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">Audio</div>
+          <div className="mt-2 flex items-center gap-2">
+            <PillButton variant="ghost" onClick={onRecord}>Enregistrer</PillButton>
+            <PillButton onClick={onUpload}>Téléverser</PillButton>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-500">MP3, WAV, M4A</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VideoCard({ onUpload, onYouTube }:{
+  onUpload: () => void; onYouTube: () => void;
+}) {
+  return (
+    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500">
+      <div className="flex items-start gap-3">
+        <div className="text-xl text-indigo-600/90">🎬</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">Vidéo</div>
+          <div className="mt-2 flex items-center gap-2">
+            <PillButton onClick={onUpload}>Téléverser</PillButton>
+            <PillButton variant="ghost" onClick={onYouTube}>YouTube</PillButton>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-500">MP4, WEBM, MOV</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -495,4 +571,3 @@ function FolderNode({
     </li>
   );
 }
-
