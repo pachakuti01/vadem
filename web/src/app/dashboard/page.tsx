@@ -342,26 +342,22 @@ export default function DashboardPage() {
             </div>
 
             {notes.length === 0 ? (
-              <div
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                className={[
-                  'rounded-xl border-2 border-dashed p-8 text-center transition',
-                  dragOver ? 'border-indigo-400 bg-indigo-50/40 text-indigo-700'
-                           : 'border-slate-300 bg-white text-slate-500'
-                ].join(' ')}
-              >
-                <div className="mx-auto mb-2 text-3xl">📂</div>
-                <p className="text-sm">Aucune note pour le moment.</p>
-                <p className="text-xs">Glisse un PDF/vidéo ici, colle un lien, ou crée une note vierge.</p>
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                  <button type="button" onClick={() => openPicker(pdfRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser un PDF</button>
-                  <button type="button" onClick={() => openPicker(videoRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser une vidéo</button>
-                  <button type="button" onClick={() => openPicker(audioRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser un audio</button>
-                </div>
-              </div>
-            ) : (
+  <div
+    onDrop={onDrop}
+    onDragOver={onDragOver}
+    onDragLeave={onDragLeave}
+    className={[
+      'rounded-xl border-2 border-dashed p-8 text-center transition',
+      dragOver ? 'border-indigo-400 bg-indigo-50/40 text-indigo-700'
+               : 'border-slate-300 bg-white text-slate-500'
+    ].join(' ')}
+  >
+    <div className="mx-auto mb-2 text-3xl">📂</div>
+    <p className="text-sm">Aucune note pour le moment.</p>
+    <p className="text-xs">Glisse un PDF/vidéo ici, colle un lien, ou crée une note vierge.</p>
+  </div>
+) : (
+
               <div className="space-y-3">
                 {notes.map((n) => (
                   <NoteRow key={n.id} note={n} onOpen={() => alert(`Ouvrir la note ${n.id}`)} />
