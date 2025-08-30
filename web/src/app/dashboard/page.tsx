@@ -3,11 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Mic, Upload, Video, Youtube, FileText, Link as LinkIcon,
-  Pencil, Folder as FolderIcon, ChevronRight, ChevronDown,
-  Grid as GridIcon, List as ListIcon, Star
-} from 'lucide-react';
 
 /* ───────────── Types & constantes ───────────── */
 
@@ -140,17 +135,7 @@ export default function DashboardPage() {
   // (démo) notes – branchement backend plus tard
   const notes: Note[] = [];
 
-  // Skeleton loaders (s’affichent brièvement au changement de tri)
-  const [isLoading, setIsLoading] = useState(false);
-  const defaultSort = typeof window !== 'undefined' ? (localStorage.getItem(LS_KEY_SORT) || 'recent') : 'recent';
-  const onSortChange = (value: string) => {
-    localStorage.setItem(LS_KEY_SORT, value);
-    setIsLoading(true);
-    // Ici tu déclencheras le fetch backend → au retour, setIsLoading(false)
-    setTimeout(() => setIsLoading(false), 600);
-  };
-
-  // Dropzone : on conserve le support du drag&drop mais SANS boutons redondants
+  // Dropzone état
   const [dragOver, setDragOver] = useState(false);
   const onDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault(); setDragOver(false);
@@ -161,19 +146,19 @@ export default function DashboardPage() {
   const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => { e.preventDefault(); setDragOver(true); };
   const onDragLeave: React.DragEventHandler<HTMLDivElement> = () => setDragOver(false);
 
+  const defaultSort = typeof window !== 'undefined' ? (localStorage.getItem(LS_KEY_SORT) || 'recent') : 'recent';
+
   return (
     <div className="min-h-screen">
       {/* ── Header ───────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-white/70 backdrop-blur-sm border-b border-slate-200/70">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 font-semibold" aria-label="Accueil">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-white">
-              <Star className="h-4 w-4" />
-            </span>
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-white">★</span>
             <span>Vadem</span>
           </Link>
 
-        <div className="ml-4 flex-1">
+          <div className="ml-4 flex-1">
             <label className="sr-only" htmlFor="search">Rechercher</label>
             <div className="relative">
               <input
@@ -282,50 +267,34 @@ export default function DashboardPage() {
 
         {/* Main */}
         <main className="order-1 lg:order-2 lg:col-span-9 space-y-8">
-          {/* Créer une note – tuiles compactes */}
+          {/* Créer une note – 4 cartes compactes groupées */}
           <section>
             <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
-              {/* AUDIO */}
-              <CompactCard
-                title="Audio"
-                subtitle="MP3, WAV, M4A"
-                leftIcon={<Mic className="h-5 w-5 text-indigo-600" aria-hidden />}
-              >
-                <PillButton variant="ghost" onClick={() => alert('Enregistrement audio (à brancher)')}>
-                  Enregistrer
-                </PillButton>
-                <PillButton onClick={() => openPicker(audioRef)}>
-                  <Upload className="h-3.5 w-3.5 mr-1" /> Téléverser
-                </PillButton>
-                <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
-              </CompactCard>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 xl:gap-3">
+              {/* AUDIO (groupé) */}
+              <AudioCard
+                onRecord={() => alert('Enregistrement audio (à brancher)')}
+                onUpload={() => openPicker(audioRef)}
+              />
+              <input ref={audioRef} type="file" accept="audio/*" className="hidden" onChange={onAudioChange} />
 
-              {/* VIDEO */}
-              <CompactCard
-                title="Vidéo"
-                subtitle="MP4, WEBM, MOV"
-                leftIcon={<Video className="h-5 w-5 text-indigo-600" aria-hidden />}
-              >
-                <PillButton onClick={() => openPicker(videoRef)}>
-                  <Upload className="h-3.5 w-3.5 mr-1" /> Téléverser
-                </PillButton>
-                <PillButton variant="ghost" onClick={() => {
+              {/* VIDEO (groupé) */}
+              <VideoCard
+                onUpload={() => openPicker(videoRef)}
+                onYouTube={() => {
                   if (!requireQuota()) return;
                   const url = prompt('URL YouTube :');
                   if (url) console.log('YouTube:', url);
-                }}>
-                  <Youtube className="h-3.5 w-3.5 mr-1" /> YouTube
-                </PillButton>
-                <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
-              </CompactCard>
+                }}
+              />
+              <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={onVideoChange} />
 
               {/* PDF */}
               <NoteActionCard
                 title="Téléverser un PDF"
                 subtitle="Extraction + résumé"
-                icon={<FileText className="h-5 w-5 text-indigo-600" aria-hidden />}
+                icon="📄"
                 onClick={() => openPicker(pdfRef)}
               />
               <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={onPdfChange} />
@@ -334,7 +303,7 @@ export default function DashboardPage() {
               <NoteActionCard
                 title="Lien Web"
                 subtitle="Résumé page web"
-                icon={<LinkIcon className="h-5 w-5 text-indigo-600" aria-hidden />}
+                icon="🔗"
                 onClick={() => {
                   if (!requireQuota()) return;
                   const url = prompt('URL à importer :');
@@ -346,7 +315,7 @@ export default function DashboardPage() {
               <NoteActionCard
                 title="Note vierge"
                 subtitle="Commencer au clavier"
-                icon={<Pencil className="h-5 w-5 text-indigo-600" aria-hidden />}
+                icon="✏️"
                 onClick={() => (requireQuota() ? alert('Créer une note vide (à brancher)') : null)}
               />
             </div>
@@ -357,15 +326,11 @@ export default function DashboardPage() {
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="text-base font-semibold">Mes notes</h3>
               <div className="flex items-center gap-2">
-                <button type="button" className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue grille" title="Vue grille">
-                  <GridIcon className="h-4 w-4" />
-                </button>
-                <button type="button" className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue liste" title="Vue liste">
-                  <ListIcon className="h-4 w-4" />
-                </button>
+                <button type="button" className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue grille" title="Vue grille">▦</button>
+                <button type="button" className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue liste" title="Vue liste">≣</button>
                 <select
                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  onChange={(e) => onSortChange(e.target.value)}
+                  onChange={(e) => { localStorage.setItem(LS_KEY_SORT, e.target.value); }}
                   defaultValue={defaultSort}
                   aria-label="Trier les notes"
                 >
@@ -376,14 +341,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Empty / Loading / List */}
-            {isLoading ? (
-              <div className="space-y-3">
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-              </div>
-            ) : notes.length === 0 ? (
+            {notes.length === 0 ? (
               <div
                 onDrop={onDrop}
                 onDragOver={onDragOver}
@@ -394,11 +352,14 @@ export default function DashboardPage() {
                            : 'border-slate-300 bg-white text-slate-500'
                 ].join(' ')}
               >
-                <div className="mx-auto mb-2">
-                  <FolderIcon className="h-9 w-9 mx-auto text-slate-400" />
-                </div>
+                <div className="mx-auto mb-2 text-3xl">📂</div>
                 <p className="text-sm">Aucune note pour le moment.</p>
                 <p className="text-xs">Glisse un PDF/vidéo ici, colle un lien, ou crée une note vierge.</p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={() => openPicker(pdfRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser un PDF</button>
+                  <button type="button" onClick={() => openPicker(videoRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser une vidéo</button>
+                  <button type="button" onClick={() => openPicker(audioRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser un audio</button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -444,50 +405,26 @@ function NavItem({ label, active=false, count, onClick }:{
   );
 }
 
-/* Tuiles compactes */
-
-function CompactCard({
-  title, subtitle, leftIcon, children,
-}:{
-  title: string;
-  subtitle?: string;
-  leftIcon?: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="group rounded-xl border border-slate-200/70 bg-white px-3 py-2.5 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 min-h-[88px] hover:-translate-y-0.5 hover:shadow-md transition">
-      <div className="flex items-start gap-3">
-        <div className="pt-0.5">{leftIcon}</div>
-        <div className="min-w-0 flex-1">
-          <div className="font-medium text-[14px] truncate">{title}</div>
-          <div className="mt-1 flex items-center gap-2">{children}</div>
-          {subtitle ? <div className="mt-0.5 text-[12px] text-slate-500 truncate">{subtitle}</div> : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NoteActionCard(props: {
-  title: string; subtitle?: string; icon?: React.ReactNode; onClick?: () => void
-}) {
-  const { title, subtitle, icon, onClick } = props;
+function NoteActionCard(props: { title: string; subtitle?: string; icon?: string; onClick?: () => void }) {
+  const { title, subtitle, icon = '📎', onClick } = props;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-xl border border-slate-200/70 bg-white px-3 py-2.5 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[88px] hover:-translate-y-0.5 hover:shadow-md transition"
+      className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[112px] hover:-translate-y-0.5 hover:shadow-md transition"
     >
       <div className="flex items-start gap-3">
-        <div className="pt-0.5">{icon}</div>
+        <div className="text-xl text-indigo-600/90">{icon}</div>
         <div className="min-w-0">
-          <div className="font-medium text-[14px] truncate">{title}</div>
-          {subtitle ? <div className="text-[12px] text-slate-500 truncate mt-0.5">{subtitle}</div> : null}
+          <div className="font-medium truncate">{title}</div>
+          {subtitle ? <div className="text-[13px] text-slate-500 truncate">{subtitle}</div> : null}
         </div>
       </div>
     </button>
   );
 }
+
+/* Pills & cartes groupées */
 
 function PillButton({ children, onClick, variant = "solid" }:{
   children: React.ReactNode;
@@ -499,7 +436,7 @@ function PillButton({ children, onClick, variant = "solid" }:{
       type="button"
       onClick={onClick}
       className={[
-        "px-2.5 py-1.5 text-xs rounded-md inline-flex items-center",
+        "px-2.5 py-1.5 text-xs rounded-md",
         variant === "solid"
           ? "bg-indigo-600 text-white hover:bg-indigo-500"
           : "border border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
@@ -510,12 +447,48 @@ function PillButton({ children, onClick, variant = "solid" }:{
   );
 }
 
+function AudioCard({ onRecord, onUpload }:{ onRecord: () => void; onUpload: () => void }) {
+  return (
+    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 min-h-[112px] hover:-translate-y-0.5 hover:shadow-md transition">
+      <div className="flex items-start gap-3">
+        <div className="text-xl text-indigo-600/90">🎤</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">Audio</div>
+          <div className="mt-2 flex items-center gap-2">
+            <PillButton variant="ghost" onClick={onRecord}>Enregistrer</PillButton>
+            <PillButton onClick={onUpload}>Téléverser</PillButton>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-500">MP3, WAV, M4A</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VideoCard({ onUpload, onYouTube }:{
+  onUpload: () => void; onYouTube: () => void;
+}) {
+  return (
+    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 min-h-[112px] hover:-translate-y-0.5 hover:shadow-md transition">
+      <div className="flex items-start gap-3">
+        <div className="text-xl text-indigo-600/90">🎬</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">Vidéo</div>
+          <div className="mt-2 flex items-center gap-2">
+            <PillButton onClick={onUpload}>Téléverser</PillButton>
+            <PillButton variant="ghost" onClick={onYouTube}>YouTube</PillButton>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-500">MP4, WEBM, MOV</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlanBadge({ used, quota }: { used: number; quota: number }) {
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-[13px]">
-      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-600 text-white">
-        <Star className="h-3.5 w-3.5" />
-      </span>
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-600 text-white text-xs">★</span>
       <span>Gratuit&nbsp;•&nbsp;{Math.min(used, quota)} / {quota}</span>
     </span>
   );
@@ -524,13 +497,7 @@ function PlanBadge({ used, quota }: { used: number; quota: number }) {
 /* ───────────── Liste de notes (row) ───────────── */
 
 function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
-  const icon = note.kind === 'pdf'
-    ? <FileText className="h-5 w-5" />
-    : note.kind === 'audio'
-    ? <Mic className="h-5 w-5" />
-    : note.kind === 'video'
-    ? <Video className="h-5 w-5" />
-    : <Pencil className="h-5 w-5" />;
+  const icon = note.kind === 'pdf' ? '📄' : note.kind === 'audio' ? '🎤' : note.kind === 'video' ? '🎬' : '📝';
   const date = new Date(note.updatedAt).toLocaleString();
 
   return (
@@ -541,36 +508,20 @@ function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
       aria-label={`Ouvrir la note ${note.title}`}
     >
       <div className="flex items-start gap-3 min-w-0">
-        <div className="text-slate-600">{icon}</div>
+        <div className="text-xl">{icon}</div>
         <div className="min-w-0">
           <div className="font-semibold leading-tight truncate">{note.title}</div>
           {note.excerpt ? <div className="text-sm text-slate-600">{note.excerpt}</div> : null}
           <div className="mt-2 flex items-center gap-3 text-[12px] text-slate-500">
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5">
-              {note.kind === 'pdf' ? 'PDF' : note.kind === 'audio' ? 'Audio' : note.kind === 'video' ? 'Vidéo' : 'Texte'}
+              {icon === '📄' ? 'PDF' : icon === '🎤' ? 'Audio' : icon === '🎬' ? 'Vidéo' : 'Texte'}
             </span>
             <span>Modifiée : {date}</span>
           </div>
         </div>
       </div>
-      <div className="text-slate-400"><ChevronRight className="h-4 w-4" /></div>
+      <div className="text-slate-400">›</div>
     </button>
-  );
-}
-
-/* Skeleton row (loader) */
-function SkeletonRow() {
-  return (
-    <div className="w-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm animate-pulse">
-      <div className="flex items-start gap-3">
-        <div className="h-5 w-5 bg-slate-200 rounded"></div>
-        <div className="flex-1 space-y-2">
-          <div className="h-3 w-1/3 bg-slate-200 rounded"></div>
-          <div className="h-3 w-2/3 bg-slate-100 rounded"></div>
-          <div className="h-3 w-1/4 bg-slate-100 rounded"></div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -652,16 +603,12 @@ function FolderNode({
               aria-label={isCollapsed ? "Déplier" : "Replier"}
               title={isCollapsed ? "Déplier" : "Replier"}
             >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {isCollapsed ? '▶' : '▼'}
             </button>
           ) : (
-            <span className="inline-flex h-5 w-5 items-center justify-center opacity-40"><ChevronRight className="h-4 w-4" /></span>
+            <span className="inline-flex h-5 w-5 items-center justify-center opacity-40">•</span>
           )}
-          <button type="button" className="truncate text-left" aria-label={`Ouvrir le dossier ${node.name}`}>
-            <span className="inline-flex items-center gap-1.5">
-              <FolderIcon className="h-4 w-4 text-slate-600" /> {node.name}
-            </span>
-          </button>
+          <button type="button" className="truncate text-left" aria-label={`Ouvrir le dossier ${node.name}`}>📁 {node.name}</button>
         </div>
 
         <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition flex items-center gap-2 text-slate-500">
