@@ -19,6 +19,7 @@ const FREE_QUOTA = 3;
 const LS_KEY_FOLDERS  = 'vadem.folders';
 const LS_KEY_USED     = 'vadem.usedNotes';
 const LS_KEY_COLLAPSE = 'vadem.folders.collapse';
+const LS_KEY_SORT     = 'vadem.sort';
 
 /* ───────────── Page ───────────── */
 
@@ -30,6 +31,18 @@ export default function DashboardPage() {
   const pdfRef   = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLInputElement | null>(null);
+
+  // Cmd/Ctrl-K → focus recherche
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Compteur (MVP localStorage)
   const [used, setUsed] = useState<number>(() => {
@@ -106,19 +119,41 @@ export default function DashboardPage() {
     if (!requireQuota()) return;
     ref.current?.click();
   };
-  const onPdfChange:   React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
-  const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
-  const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => { if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return; setUsed((u) => Math.min(FREE_QUOTA, u + 1)); };
+  const onPdfChange:   React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return;
+    setUsed((u) => Math.min(FREE_QUOTA, u + 1));
+  };
+  const onAudioChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return;
+    setUsed((u) => Math.min(FREE_QUOTA, u + 1));
+  };
+  const onVideoChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    if (!e.currentTarget.files?.[0]) return; if (!requireQuota()) return;
+    setUsed((u) => Math.min(FREE_QUOTA, u + 1));
+  };
 
   // (démo) notes – branchement backend plus tard
   const notes: Note[] = [];
 
+  // Dropzone état
+  const [dragOver, setDragOver] = useState(false);
+  const onDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
+    e.preventDefault(); setDragOver(false);
+    if (!requireQuota()) return;
+    const f = e.dataTransfer.files?.[0];
+    if (f) setUsed(u => Math.min(FREE_QUOTA, u + 1));
+  };
+  const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => { e.preventDefault(); setDragOver(true); };
+  const onDragLeave: React.DragEventHandler<HTMLDivElement> = () => setDragOver(false);
+
+  const defaultSort = typeof window !== 'undefined' ? (localStorage.getItem(LS_KEY_SORT) || 'recent') : 'recent';
+
   return (
     <div className="min-h-screen">
       {/* ── Header ───────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
+      <header className="sticky top-0 z-20 bg-white/70 backdrop-blur-sm border-b border-slate-200/70">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Link href="/" className="flex items-center gap-2 font-semibold" aria-label="Accueil">
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-white">★</span>
             <span>Vadem</span>
           </Link>
@@ -131,7 +166,8 @@ export default function DashboardPage() {
                 ref={searchRef}
                 type="search"
                 placeholder="Rechercher une note…"
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 pl-10 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                title="Astuce : ⌘K / Ctrl+K"
+                className="w-full rounded-lg border border-slate-300/80 bg-white px-4 py-2.5 pl-10 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <span className="pointer-events-none absolute left-3 top-2.5 text-slate-400">⌕</span>
             </div>
@@ -140,6 +176,7 @@ export default function DashboardPage() {
           <div className="ml-auto hidden sm:flex items-center gap-3">
             <PlanBadge used={used} quota={FREE_QUOTA} />
             <button
+              type="button"
               onClick={() => router.push('/pricing')}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
@@ -148,9 +185,11 @@ export default function DashboardPage() {
           </div>
 
           <button
+            type="button"
             onClick={() => alert('Menu utilisateur')}
             className="ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-slate-700"
             aria-label="Ouvrir le menu utilisateur"
+            title="Compte"
           >
             LD
           </button>
@@ -162,7 +201,11 @@ export default function DashboardPage() {
         <div className="mx-auto max-w-7xl px-4 pt-4">
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 flex items-center justify-between">
             <span>Tu as atteint la limite du plan gratuit.</span>
-            <button onClick={() => router.push('/pricing')} className="rounded-lg bg-amber-600 px-3 py-1.5 text-white hover:bg-amber-500">
+            <button
+              type="button"
+              onClick={() => router.push('/pricing')}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 text-white hover:bg-amber-500"
+            >
               Mettre à niveau
             </button>
           </div>
@@ -172,7 +215,7 @@ export default function DashboardPage() {
       {/* ── Grille principale : Sidebar / Main ─────────────────────────── */}
       <div className="mx-auto max-w-7xl px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Sidebar (sticky) */}
-        <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6 lg:sticky lg:top-20 self-start">
+        <aside className="order-2 lg:order-1 lg:col-span-3 space-y-6 lg:sticky lg:top-20 self-start max-h-[calc(100vh-96px)] overflow-y-auto pr-1">
           {/* Vues */}
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="text-xs font-semibold text-slate-500 uppercase px-1 mb-2">Vues</div>
@@ -188,7 +231,7 @@ export default function DashboardPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs font-semibold text-slate-500 uppercase">Dossiers</div>
-              <button onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
+              <button type="button" onClick={() => setAdding(true)} className="text-indigo-600 hover:underline text-sm">+ Dossier</button>
             </div>
 
             {adding ? (
@@ -228,7 +271,7 @@ export default function DashboardPage() {
           <section>
             <h2 className="mb-3 text-lg font-semibold">Créer une note</h2>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 xl:gap-3">
               {/* AUDIO (groupé) */}
               <AudioCard
                 onRecord={() => alert('Enregistrement audio (à brancher)')}
@@ -280,15 +323,16 @@ export default function DashboardPage() {
 
           {/* Mes notes */}
           <section>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="text-base font-semibold">Mes notes</h3>
               <div className="flex items-center gap-2">
-                <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue grille">▦</button>
-                <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue liste">≣</button>
+                <button type="button" className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue grille" title="Vue grille">▦</button>
+                <button type="button" className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50" aria-label="Vue liste" title="Vue liste">≣</button>
                 <select
                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  onChange={(e) => console.log('sort:', e.target.value)}
-                  defaultValue="recent"
+                  onChange={(e) => { localStorage.setItem(LS_KEY_SORT, e.target.value); }}
+                  defaultValue={defaultSort}
+                  aria-label="Trier les notes"
                 >
                   <option value="recent">Trier : Récents</option>
                   <option value="az">Trier : A → Z</option>
@@ -298,10 +342,24 @@ export default function DashboardPage() {
             </div>
 
             {notes.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-slate-500">
+              <div
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                className={[
+                  'rounded-xl border-2 border-dashed p-8 text-center transition',
+                  dragOver ? 'border-indigo-400 bg-indigo-50/40 text-indigo-700'
+                           : 'border-slate-300 bg-white text-slate-500'
+                ].join(' ')}
+              >
                 <div className="mx-auto mb-2 text-3xl">📂</div>
                 <p className="text-sm">Aucune note pour le moment.</p>
-                <p className="text-xs">Importe un PDF/vidéo, colle un lien, ou crée une note vierge.</p>
+                <p className="text-xs">Glisse un PDF/vidéo ici, colle un lien, ou crée une note vierge.</p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={() => openPicker(pdfRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser un PDF</button>
+                  <button type="button" onClick={() => openPicker(videoRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser une vidéo</button>
+                  <button type="button" onClick={() => openPicker(audioRef)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50">Téléverser un audio</button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -324,18 +382,22 @@ function NavItem({ label, active=false, count, onClick }:{
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={[
-        "w-full flex items-center justify-between rounded-lg px-3 py-2 transition",
-        active ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-100 text-slate-700"
+        "relative w-full flex items-center justify-between rounded-lg px-3 py-2 transition text-slate-700",
+        active ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-100"
       ].join(" ")}
     >
+      {active && <span className="absolute left-0 top-0 h-full w-1 rounded-l-lg bg-indigo-500" />}
       <span>{label}</span>
       {typeof count === "number" && (
-        <span className={
-          "ml-3 inline-flex items-center rounded-full px-2 text-xs " +
-          (active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600")
-        }>
+        <span
+          className={
+            "ml-3 inline-flex items-center rounded-full px-2 text-[12px] " +
+            (active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600")
+          }
+        >
           {count}
         </span>
       )}
@@ -347,14 +409,15 @@ function NoteActionCard(props: { title: string; subtitle?: string; icon?: string
   const { title, subtitle, icon = '📎', onClick } = props;
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[112px] hover:-translate-y-0.5 hover:shadow-md transition"
     >
       <div className="flex items-start gap-3">
         <div className="text-xl text-indigo-600/90">{icon}</div>
         <div className="min-w-0">
           <div className="font-medium truncate">{title}</div>
-          {subtitle ? <div className="text-xs text-slate-500 truncate">{subtitle}</div> : null}
+          {subtitle ? <div className="text-[13px] text-slate-500 truncate">{subtitle}</div> : null}
         </div>
       </div>
     </button>
@@ -370,9 +433,10 @@ function PillButton({ children, onClick, variant = "solid" }:{
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={[
-        "px-2.5 py-1 text-xs rounded-md",
+        "px-2.5 py-1.5 text-xs rounded-md",
         variant === "solid"
           ? "bg-indigo-600 text-white hover:bg-indigo-500"
           : "border border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
@@ -385,7 +449,7 @@ function PillButton({ children, onClick, variant = "solid" }:{
 
 function AudioCard({ onRecord, onUpload }:{ onRecord: () => void; onUpload: () => void }) {
   return (
-    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500">
+    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 min-h-[112px] hover:-translate-y-0.5 hover:shadow-md transition">
       <div className="flex items-start gap-3">
         <div className="text-xl text-indigo-600/90">🎤</div>
         <div className="min-w-0">
@@ -405,7 +469,7 @@ function VideoCard({ onUpload, onYouTube }:{
   onUpload: () => void; onYouTube: () => void;
 }) {
   return (
-    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500">
+    <div className="group rounded-xl border border-slate-200/70 bg-white px-4 py-3 text-left shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 min-h-[112px] hover:-translate-y-0.5 hover:shadow-md transition">
       <div className="flex items-start gap-3">
         <div className="text-xl text-indigo-600/90">🎬</div>
         <div className="min-w-0">
@@ -423,7 +487,7 @@ function VideoCard({ onUpload, onYouTube }:{
 
 function PlanBadge({ used, quota }: { used: number; quota: number }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm">
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-[13px]">
       <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-600 text-white text-xs">★</span>
       <span>Gratuit&nbsp;•&nbsp;{Math.min(used, quota)} / {quota}</span>
     </span>
@@ -438,15 +502,17 @@ function NoteRow({ note, onOpen }:{ note: Note; onOpen: () => void }) {
 
   return (
     <button
+      type="button"
       onClick={onOpen}
       className="w-full rounded-xl border border-slate-200 bg-white text-left p-4 shadow-sm hover:shadow-md transition flex items-start justify-between gap-4"
+      aria-label={`Ouvrir la note ${note.title}`}
     >
       <div className="flex items-start gap-3 min-w-0">
         <div className="text-xl">{icon}</div>
         <div className="min-w-0">
           <div className="font-semibold leading-tight truncate">{note.title}</div>
           {note.excerpt ? <div className="text-sm text-slate-600">{note.excerpt}</div> : null}
-          <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+          <div className="mt-2 flex items-center gap-3 text-[12px] text-slate-500">
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5">
               {icon === '📄' ? 'PDF' : icon === '🎤' ? 'Audio' : icon === '🎬' ? 'Vidéo' : 'Texte'}
             </span>
@@ -531,6 +597,7 @@ function FolderNode({
         <div className="flex items-center gap-2 min-w-0">
           {hasChildren ? (
             <button
+              type="button"
               onClick={() => onToggle(node.id)}
               className="inline-flex h-5 w-5 items-center justify-center rounded hover:bg-slate-200"
               aria-label={isCollapsed ? "Déplier" : "Replier"}
@@ -541,13 +608,13 @@ function FolderNode({
           ) : (
             <span className="inline-flex h-5 w-5 items-center justify-center opacity-40">•</span>
           )}
-          <button className="truncate text-left" aria-label={`Ouvrir le dossier ${node.name}`}>📁 {node.name}</button>
+          <button type="button" className="truncate text-left" aria-label={`Ouvrir le dossier ${node.name}`}>📁 {node.name}</button>
         </div>
 
-        <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-2 text-slate-500">
-          <button onClick={() => onAddChild(node.id)} title="Sous-dossier" aria-label="Créer un sous-dossier">➕</button>
-          <button onClick={() => onRename(node.id)}   title="Renommer" aria-label="Renommer le dossier">✏️</button>
-          <button onClick={() => onDelete(node.id)}   title="Supprimer" aria-label="Supprimer le dossier">🗑️</button>
+        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition flex items-center gap-2 text-slate-500">
+          <button type="button" tabIndex={0} onClick={() => onAddChild(node.id)} title="Sous-dossier" aria-label="Créer un sous-dossier">➕</button>
+          <button type="button" tabIndex={0} onClick={() => onRename(node.id)}   title="Renommer" aria-label="Renommer le dossier">✏️</button>
+          <button type="button" tabIndex={0} onClick={() => onDelete(node.id)}   title="Supprimer" aria-label="Supprimer le dossier">🗑️</button>
         </div>
       </div>
 
